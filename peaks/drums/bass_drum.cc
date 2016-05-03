@@ -8,10 +8,10 @@
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,7 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-// 
+//
 // See http://creativecommons.org/licenses/MIT/ for more information.
 //
 // -----------------------------------------------------------------------------
@@ -43,7 +43,7 @@ void BassDrum::Init() {
   pulse_down_.Init();
   attack_fm_.Init();
   resonator_.Init();
-  
+
   pulse_up_.set_delay(0);
   pulse_up_.set_decay(3340);
 
@@ -52,15 +52,15 @@ void BassDrum::Init() {
 
   attack_fm_.set_delay(4.0e-3 * 48000);
   attack_fm_.set_decay(4093);
-  
+
   resonator_.set_punch(32768);
-  resonator_.set_mode(SVF_MODE_BP);
-  
+  resonator_.set_mode(SVF_MODE_LP);
+
   set_frequency(0);
   set_decay(32768);
   set_tone(32768);
   set_punch(65535);
-  
+
   lp_state_ = 0;
 }
 

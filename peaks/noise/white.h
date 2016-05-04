@@ -5,10 +5,6 @@
 
 #include "stmlib/stmlib.h"
 
-#include "peaks/drums/svf.h"
-
-#include "peaks/gate_processor.h"
-
 namespace peaks {
 
 class WhiteNoise {
@@ -27,4 +23,4 @@ class WhiteNoise {
 
 }  // namespace peaks
 
-#endif  // PEAKS_WHITE_WHITE_NOISE_H_
+#endif  // PEAKS_WHITE_NOISE_H_

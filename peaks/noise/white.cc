@@ -13,12 +13,7 @@ namespace peaks {
 
 using namespace stmlib;
 
-void WhiteNoise::Init() {
-  noise_.Init();
-  noise_.set_frequency(105 << 7);  // 8kHz
-  noise_.set_resonance(24000);
-  noise_.set_mode(SVF_MODE_HP);
-}
+void WhiteNoise::Init() { }
 
 int16_t WhiteNoise::ProcessSingleSample(uint8_t control) {
 

@@ -21,9 +21,6 @@ class WhiteNoise {
   void Configure(uint16_t* parameter, ControlMode control_mode) { }
 
  private:
-  Svf noise_;
-
-  uint32_t phase_[6];
 
   DISALLOW_COPY_AND_ASSIGN(WhiteNoise);
 };

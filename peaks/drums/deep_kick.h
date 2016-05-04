@@ -26,8 +26,8 @@
 //
 // 808-style bass drum.
 
-#ifndef PEAKS_DRUMS_BASS_DRUM_ALT_H_
-#define PEAKS_DRUMS_BASS_DRUM_ALT_H_
+#ifndef PEAKS_DRUMS_DEEP_KICK_H_
+#define PEAKS_DRUMS_DEEP_KICK_H_
 
 #include "stmlib/stmlib.h"
 
@@ -38,10 +38,10 @@
 
 namespace peaks {
 
-class BassDrumAlt {
+class DeepKick {
  public:
-  BassDrumAlt() { }
-  ~BassDrumAlt() { }
+  DeepKick() { }
+  ~DeepKick() { }
 
   void Init();
   int16_t ProcessSingleSample(uint8_t control) IN_RAM;
@@ -49,12 +49,14 @@ class BassDrumAlt {
   void Configure(uint16_t* parameter, ControlMode control_mode) {
     if (control_mode == CONTROL_MODE_HALF) {
       set_frequency(0);
-      set_punch(40000);
+      set_punch(0);
+      set_lpf_cutoff(40000);
       set_tone(8192 + (parameter[0] >> 1));
       set_decay(parameter[1]);
     } else {
       set_frequency(parameter[0] - 32768);
-      set_punch(parameter[1]);
+      set_lpf_cutoff(parameter[1]);
+      set_punch(parameter[2]);
       set_tone(parameter[2]);
       set_decay(parameter[3]);
     }
@@ -73,6 +75,13 @@ class BassDrumAlt {
     resonator_.set_resonance(32768 - 128 - scaled);
   }
 
+  void set_lpf_cutoff(uint16_t frequency) {
+    int16_t base_note = 52 << 7;
+    int32_t transposition = frequency;
+    base_note += transposition * 896 >> 15;
+    lpf_.set_frequency(base_note + (12 << 7));
+  }
+
   void set_tone(uint16_t tone) {
     uint32_t coefficient = tone;
     coefficient = coefficient * coefficient >> 16;
@@ -88,14 +97,15 @@ class BassDrumAlt {
   Excitation pulse_down_;
   Excitation attack_fm_;
   Svf resonator_;
+  Svf lpf_;
 
   int32_t frequency_;
   int32_t lp_coefficient_;
   int32_t lp_state_;
 
-  DISALLOW_COPY_AND_ASSIGN(BassDrumAlt);
+  DISALLOW_COPY_AND_ASSIGN(DeepKick);
 };
 
 }  // namespace peaks
 
-#endif  // PEAKS_DRUMS_BASS_DRUM_ALT_H_
+#endif  // PEAKS_DRUMS_DEEP_KICK_H_

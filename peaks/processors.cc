@@ -62,6 +62,7 @@ Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_UNBUFFERED_PROCESSOR(BouncingBall)
   REGISTER_UNBUFFERED_PROCESSOR(MiniSequencer)
   REGISTER_BUFFERED_PROCESSOR(NumberStation)
+  REGISTER_UNBUFFERED_PROCESSOR(PinkNoise)
 };
 
 void Processors::Init(uint8_t index) {
@@ -82,6 +83,7 @@ void Processors::Init(uint8_t index) {
   fm_drum_.Init();
   fm_drum_.set_sd_range(index == 1);
   high_hat_.Init();
+  pink_noise_.Init();
   bouncing_ball_.Init();
   lfo_.Init();
   envelope_.Init();

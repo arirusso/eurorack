@@ -16,7 +16,7 @@ static const int32_t kFilterFactor[] = {
   115,
   181,
   -131
-}
+};
 
 static const int32_t kWhiteFilterFactor[] = {
   1801,
@@ -25,7 +25,7 @@ static const int32_t kWhiteFilterFactor[] = {
   322,
   187,
   -5917
-}
+};
 
 static const uint16_t kFilterSumFactor = 186;
 static const uint16_t kFilterIterateFactor = 862;
@@ -48,7 +48,7 @@ class PinkNoise {
     }
     return(sum);
   }
-  int16_t b_[7] = { 0, 0, 0, 0, 0, 0, 0 };
+  int16_t b_[7];
 
   DISALLOW_COPY_AND_ASSIGN(PinkNoise);
 };

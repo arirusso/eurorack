@@ -8,10 +8,10 @@
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-//
+// 
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-//
+// 
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,7 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-//
+// 
 // See http://creativecommons.org/licenses/MIT/ for more information.
 //
 // -----------------------------------------------------------------------------
@@ -48,13 +48,12 @@ using namespace std;
     &Processors::ClassName ## Configure },
 
 /* static */
-const Processors::ProcessorCallbacks
+const Processors::ProcessorCallbacks 
 Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_UNBUFFERED_PROCESSOR(MultistageEnvelope)
   REGISTER_BUFFERED_PROCESSOR(Lfo)
   REGISTER_BUFFERED_PROCESSOR(Lfo)
   REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
-  REGISTER_UNBUFFERED_PROCESSOR(DeepKick)
   REGISTER_UNBUFFERED_PROCESSOR(SnareDrum)
   REGISTER_UNBUFFERED_PROCESSOR(HighHat)
   REGISTER_BUFFERED_PROCESSOR(FmDrum)
@@ -73,13 +72,12 @@ void Processors::Init(uint8_t index) {
     output_buffer_.Overwrite(0);
     input_buffer_.Overwrite(0);
   }
-
+  
   for (uint16_t i = 0; i < PROCESSOR_FUNCTION_LAST; ++i) {
     (this->*callbacks_table_[i].init_fn)();
   }
-
+  
   bass_drum_.Init();
-  deep_kick_.Init();
   snare_drum_.Init();
   fm_drum_.Init();
   fm_drum_.set_sd_range(index == 1);
@@ -92,7 +90,7 @@ void Processors::Init(uint8_t index) {
   mini_sequencer_.Init();
   number_station_.Init();
   number_station_.set_voice(index == 1);
-
+  
   control_mode_ = CONTROL_MODE_FULL;
   set_function(PROCESSOR_FUNCTION_ENVELOPE);
   std::fill(&parameter_[0], &parameter_[4], 32768);

@@ -54,7 +54,7 @@ Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_BUFFERED_PROCESSOR(Lfo)
   REGISTER_BUFFERED_PROCESSOR(Lfo)
   REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
-  REGISTER_UNBUFFERED_PROCESSOR(BassDrumAlt)
+  REGISTER_UNBUFFERED_PROCESSOR(DeepKick)
   REGISTER_UNBUFFERED_PROCESSOR(SnareDrum)
   REGISTER_UNBUFFERED_PROCESSOR(HighHat)
   REGISTER_BUFFERED_PROCESSOR(FmDrum)
@@ -79,7 +79,7 @@ void Processors::Init(uint8_t index) {
   }
 
   bass_drum_.Init();
-  bass_drum_alt_.Init();
+  deep_kick_.Init();
   snare_drum_.Init();
   fm_drum_.Init();
   fm_drum_.set_sd_range(index == 1);

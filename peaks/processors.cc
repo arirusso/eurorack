@@ -56,7 +56,7 @@ Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
   REGISTER_UNBUFFERED_PROCESSOR(SnareDrum)
   REGISTER_UNBUFFERED_PROCESSOR(HighHat)
-  REGISTER_UNBUFFERED_PROCESSOR(HighHatNoise)
+  REGISTER_UNBUFFERED_PROCESSOR(HHNoise)
   REGISTER_BUFFERED_PROCESSOR(FmDrum)
   REGISTER_BUFFERED_PROCESSOR(PulseShaper)
   REGISTER_BUFFERED_PROCESSOR(PulseRandomizer)
@@ -83,7 +83,7 @@ void Processors::Init(uint8_t index) {
   fm_drum_.Init();
   fm_drum_.set_sd_range(index == 1);
   high_hat_.Init();
-  high_hat_noise_.Init();
+  hh_noise_.Init();
   bouncing_ball_.Init();
   lfo_.Init();
   envelope_.Init();

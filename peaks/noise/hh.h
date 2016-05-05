@@ -1,4 +1,5 @@
-//
+// Based on the noise source from the Peaks high hat
+// (Peaks high hat is copyright 2013 Olivier Gillet)
 
 #ifndef PEAKS_HH_NOISE_H_
 #define PEAKS_HH_NOISE_H_

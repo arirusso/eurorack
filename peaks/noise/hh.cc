@@ -1,4 +1,5 @@
-//
+// Based on the noise source from the Peaks high hat
+// (Peaks high hat is copyright 2013 Olivier Gillet)
 
 #include "peaks/noise/hh.h"
 

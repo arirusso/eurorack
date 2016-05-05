@@ -41,6 +41,7 @@
 #include "peaks/modulations/lfo.h"
 #include "peaks/modulations/mini_sequencer.h"
 #include "peaks/modulations/multistage_envelope.h"
+#include "peaks/noise/pink.h"
 #include "peaks/number_station/number_station.h"
 #include "peaks/pulse_processor/pulse_shaper.h"
 #include "peaks/pulse_processor/pulse_randomizer.h"
@@ -57,6 +58,7 @@ enum ProcessorFunction {
   PROCESSOR_FUNCTION_SNARE_DRUM,
   PROCESSOR_FUNCTION_HIGH_HAT,
   PROCESSOR_FUNCTION_FM_DRUM,
+  PROCESSOR_FUNCTION_PINK_NOISE,
   PROCESSOR_FUNCTION_PULSE_SHAPER,
   PROCESSOR_FUNCTION_PULSE_RANDOMIZER,
   PROCESSOR_FUNCTION_BOUNCING_BALL,
@@ -196,6 +198,7 @@ class Processors {
   DECLARE_UNBUFFERED_PROCESSOR(SnareDrum, snare_drum_);
   DECLARE_UNBUFFERED_PROCESSOR(HighHat, high_hat_);
   DECLARE_BUFFERED_PROCESSOR(FmDrum, fm_drum_);
+  DECLARE_UNBUFFERED_PROCESSOR(PinkNoise, pink_noise_);
   DECLARE_BUFFERED_PROCESSOR(PulseShaper, pulse_shaper_);
   DECLARE_BUFFERED_PROCESSOR(PulseRandomizer, pulse_randomizer_);
   DECLARE_UNBUFFERED_PROCESSOR(BouncingBall, bouncing_ball_);

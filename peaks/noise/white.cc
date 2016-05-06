@@ -18,7 +18,7 @@ void WhiteNoise::Init() { }
 int16_t WhiteNoise::ProcessSingleSample(uint8_t control) {
 
   int16_t noise = Random::GetSample();
-
+  noise /= 2; // gain compensation
   CLIP(noise);
   return noise;
 }

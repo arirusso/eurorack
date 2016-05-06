@@ -146,6 +146,11 @@ inline void Ui::RefreshLeds() {
         b[i] = abs(brightness_[i]) >> 8;
         b[i] = b[i] > 255 ? 255 : b[i];
         break;
+      case FUNCTION_WHITE_NOISE:
+      case FUNCTION_HH_NOISE:
+        b[i] = brightness_[i] >> 7;
+        b[i] /= 2;
+        break;
       case FUNCTION_TAP_LFO:
       case FUNCTION_MINI_SEQUENCER:
         b[i] = static_cast<uint16_t>(brightness_[i] + 32768) >> 8;

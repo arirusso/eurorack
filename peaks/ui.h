@@ -8,10 +8,10 @@
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,7 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-// 
+//
 // See http://creativecommons.org/licenses/MIT/ for more information.
 //
 // -----------------------------------------------------------------------------
@@ -58,7 +58,7 @@ enum EditMode {
 };
 
 enum Function {
-  FUNCTION_ENVELOPE,
+  FUNCTION_WHITE_NOISE,
   FUNCTION_LFO,
   FUNCTION_TAP_LFO,
   FUNCTION_DRUM_GENERATOR,
@@ -81,18 +81,18 @@ class Ui {
  public:
   Ui() { }
   ~Ui() { }
-  
+
   void Init();
   void Poll();
   void PollPots();
   void DoEvents();
   void FlushEvents();
-  
+
   void set_leds_brightness(int16_t channel_1, int16_t channel_2) {
     brightness_[0] = channel_1;
     brightness_[1] = channel_2;
   }
-  
+
   inline uint8_t ReadPanelGateState() {
     uint8_t state = panel_gate_control_[0] ? INPUT_1_GATE : 0;
     state |= panel_gate_control_[1] ? INPUT_2_GATE : 0;
@@ -111,7 +111,7 @@ class Ui {
     panel_gate_state_ = state;
     return state;
   }
-  
+
  private:
   inline Function function() const {
     return edit_mode_ == EDIT_MODE_SECOND ? function_[1] : function_[0];
@@ -121,7 +121,7 @@ class Ui {
   void OnSwitchReleased(const stmlib::Event& e);
   void OnPotChanged(const stmlib::Event& e);
   void RefreshLeds();
-  
+
   void ChangeControlMode();
   void SetFunction(uint8_t index, Function f);
   void SaveState();
@@ -131,28 +131,28 @@ class Ui {
   uint32_t press_time_[kNumSwitches];
   bool panel_gate_control_[2];
   static const ProcessorFunction function_table_[FUNCTION_LAST][2];
-  
+
   stmlib::EventQueue<32> queue_;
-  
+
   Leds leds_;
   Switches switches_;
   Adc adc_;
-  
+
   EditMode edit_mode_;
   Function function_[2];
   Settings settings_;
   uint16_t version_token_;
-  
+
   int16_t brightness_[2];
-  
+
   uint8_t panel_gate_state_;
-  
+
   uint8_t double_press_counter_;
   uint8_t pot_value_[8];
-  
+
   bool snap_mode_;
   bool snapped_[kNumAdcChannels];
-  
+
   DISALLOW_COPY_AND_ASSIGN(Ui);
 };
 

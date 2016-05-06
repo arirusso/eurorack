@@ -35,7 +35,7 @@ class DeepKick {
       set_decay(parameter[1]);
     } else {
       set_frequency(parameter[0] - 32768);
-      set_lpf_cutoff(parameter[1]);
+      set_lpf_cutoff(parameter[1] - 4096);
       set_punch(parameter[2]);
       set_tone(parameter[2]);
       set_decay(parameter[3]);

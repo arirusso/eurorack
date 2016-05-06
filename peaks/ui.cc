@@ -44,7 +44,7 @@ const int32_t kLongPressDuration = 600;
 /* static */
 const ProcessorFunction Ui::function_table_[FUNCTION_LAST][2] = {
   { PROCESSOR_FUNCTION_WHITE_NOISE, PROCESSOR_FUNCTION_WHITE_NOISE },
-  { PROCESSOR_FUNCTION_LFO, PROCESSOR_FUNCTION_LFO },
+  { PROCESSOR_FUNCTION_HH_NOISE, PROCESSOR_FUNCTION_HH_NOISE },
   { PROCESSOR_FUNCTION_TAP_LFO, PROCESSOR_FUNCTION_TAP_LFO },
   { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_SNARE_DRUM },
 
@@ -146,7 +146,6 @@ inline void Ui::RefreshLeds() {
         b[i] = abs(brightness_[i]) >> 8;
         b[i] = b[i] > 255 ? 255 : b[i];
         break;
-      case FUNCTION_LFO:
       case FUNCTION_TAP_LFO:
       case FUNCTION_MINI_SEQUENCER:
         b[i] = static_cast<uint16_t>(brightness_[i] + 32768) >> 8;

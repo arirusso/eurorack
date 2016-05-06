@@ -51,7 +51,7 @@ using namespace std;
 const Processors::ProcessorCallbacks
 Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_UNBUFFERED_PROCESSOR(WhiteNoise)
-  REGISTER_BUFFERED_PROCESSOR(Lfo)
+  REGISTER_BUFFERED_PROCESSOR(HHNoise)
   REGISTER_BUFFERED_PROCESSOR(Lfo)
   REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
   REGISTER_UNBUFFERED_PROCESSOR(SnareDrum)
@@ -85,6 +85,7 @@ void Processors::Init(uint8_t index) {
   bouncing_ball_.Init();
   lfo_.Init();
   white_noise_.Init();
+  hh_noise_.Init();
   pulse_shaper_.Init();
   pulse_randomizer_.Init();
   mini_sequencer_.Init();

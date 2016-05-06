@@ -40,6 +40,7 @@
 #include "peaks/modulations/bouncing_ball.h"
 #include "peaks/modulations/lfo.h"
 #include "peaks/modulations/mini_sequencer.h"
+#include "peaks/noise/hh.h"
 #include "peaks/noise/white.h"
 #include "peaks/number_station/number_station.h"
 #include "peaks/pulse_processor/pulse_shaper.h"
@@ -51,7 +52,7 @@ namespace peaks {
 
 enum ProcessorFunction {
   PROCESSOR_FUNCTION_WHITE_NOISE,
-  PROCESSOR_FUNCTION_LFO,
+  PROCESSOR_FUNCTION_HH_NOISE,
   PROCESSOR_FUNCTION_TAP_LFO,
   PROCESSOR_FUNCTION_BASS_DRUM,
   PROCESSOR_FUNCTION_SNARE_DRUM,
@@ -191,6 +192,7 @@ class Processors {
   static const ProcessorCallbacks callbacks_table_[PROCESSOR_FUNCTION_LAST];
 
   DECLARE_UNBUFFERED_PROCESSOR(WhiteNoise, white_noise_);
+  DECLARE_UNBUFFERED_PROCESSOR(HHNoise, hh_noise_);
   DECLARE_BUFFERED_PROCESSOR(Lfo, lfo_);
   DECLARE_UNBUFFERED_PROCESSOR(BassDrum, bass_drum_);
   DECLARE_UNBUFFERED_PROCESSOR(SnareDrum, snare_drum_);

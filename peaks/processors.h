@@ -33,9 +33,9 @@
 
 #include <algorithm>
 
+#include "peaks/drums/deep_kick.h"
 #include "peaks/drums/bass_drum.h"
 #include "peaks/drums/fm_drum.h"
-#include "peaks/drums/snare_drum.h"
 #include "peaks/drums/high_hat.h"
 #include "peaks/modulations/bouncing_ball.h"
 #include "peaks/modulations/lfo.h"
@@ -54,8 +54,8 @@ enum ProcessorFunction {
   PROCESSOR_FUNCTION_WHITE_NOISE,
   PROCESSOR_FUNCTION_HH_NOISE,
   PROCESSOR_FUNCTION_TAP_LFO,
+  PROCESSOR_FUNCTION_DEEP_KICK,
   PROCESSOR_FUNCTION_BASS_DRUM,
-  PROCESSOR_FUNCTION_SNARE_DRUM,
   PROCESSOR_FUNCTION_HIGH_HAT,
   PROCESSOR_FUNCTION_FM_DRUM,
   PROCESSOR_FUNCTION_PULSE_SHAPER,
@@ -162,22 +162,6 @@ class Processors {
 
  private:
   void Configure() {
-    if (function_ == PROCESSOR_FUNCTION_SNARE_DRUM ||
-        function_ == PROCESSOR_FUNCTION_HIGH_HAT) {
-      uint16_t tone_parameter = control_mode_ == CONTROL_MODE_FULL
-          ? parameter_[1] : parameter_[0];
-      uint16_t snappy_parameter = control_mode_ == CONTROL_MODE_FULL
-          ? parameter_[2] : parameter_[1];
-      if (tone_parameter >= 65000 && snappy_parameter >= 65000) {
-        if (function_ != PROCESSOR_FUNCTION_HIGH_HAT) {
-          set_function(PROCESSOR_FUNCTION_HIGH_HAT);
-        }
-      } else if (tone_parameter <= 64500 || snappy_parameter <= 64500) {
-        if (function_ != PROCESSOR_FUNCTION_SNARE_DRUM) {
-          set_function(PROCESSOR_FUNCTION_SNARE_DRUM);
-        }
-      }
-    }
     (this->*callbacks_.configure)(&parameter_[0], control_mode_);
   }
 
@@ -195,7 +179,7 @@ class Processors {
   DECLARE_UNBUFFERED_PROCESSOR(HHNoise, hh_noise_);
   DECLARE_BUFFERED_PROCESSOR(Lfo, lfo_);
   DECLARE_UNBUFFERED_PROCESSOR(BassDrum, bass_drum_);
-  DECLARE_UNBUFFERED_PROCESSOR(SnareDrum, snare_drum_);
+  DECLARE_UNBUFFERED_PROCESSOR(DeepKick, deep_kick_);
   DECLARE_UNBUFFERED_PROCESSOR(HighHat, high_hat_);
   DECLARE_BUFFERED_PROCESSOR(FmDrum, fm_drum_);
   DECLARE_BUFFERED_PROCESSOR(PulseShaper, pulse_shaper_);

@@ -1,17 +1,10 @@
-// Copyright 2012 Olivier Gillet.
 //
-// Author: Olivier Gillet (ol.gillet@gmail.com)
+// VC Clock div/mult
+// Alternate firmware for Mutable Instruments Branches
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// Based on code from the original Mutable Instruments Branches firmware
+// Branches is Copyright 2012 Olivier Gillet.
+//
 
 #include <avr/eeprom.h>
 #include <avr/pgmspace.h>
@@ -47,25 +40,24 @@ Gpio<PortC, 3> switch_1;
 Adc adc;
 
 const uint16_t kLongPressTime = 6250;  // 800 * 8000 / 1024
-const uint16_t kLedGateDelay = 0x1ff;
+const uint16_t kLedGateDelay = 0x100;
 
 static uint8_t adc_channel;
-static uint16_t p[2];
-
-bool toggle_mode[2];
-bool latch_mode[2];
 
 bool input_state[2];
-bool previous_state[2];
-
 bool switch_state[2];
 bool inhibit_switch[2];
-uint16_t press_time[2];
 
+uint16_t press_time[2];
 uint8_t led_state[2];
 uint16_t led_gate_delay[2];
 
-uint32_t rng_state;
+const uint8_t kFactorScaleFactor = 4095;
+const uint8_t kClockBufferSize = 20;
+uint16_t clock[2][kClockBufferSize];
+int8_t clock_factor[2];
+static uint16_t factor_control[2];
+static uint16_t last_factor_control[2];
 
 const prog_uint16_t linear_table[] PROGMEM = {
       0,     0,   259,   518,   777,  1036,  1295,  1554,
@@ -105,12 +97,12 @@ const prog_uint16_t linear_table[] PROGMEM = {
 void Init() {
   Gpio<PortB, 4>::set_mode(DIGITAL_OUTPUT);
   Gpio<PortB, 4>::Low();
-  
+
   in_1.set_mode(DIGITAL_INPUT);
   in_2.set_mode(DIGITAL_INPUT);
   in_1.High();
   in_2.High();
-  
+
   switch_1.set_mode(DIGITAL_INPUT);
   switch_2.set_mode(DIGITAL_INPUT);
   switch_1.High();
@@ -125,28 +117,23 @@ void Init() {
   out_2_b.set_mode(DIGITAL_OUTPUT);
   led_2_a.set_mode(DIGITAL_OUTPUT);
   led_2_k.set_mode(DIGITAL_OUTPUT);
-  
+
   led_1_a.Low();
   led_2_a.Low();
   led_1_k.Low();
   led_2_k.Low();
-  
+
   adc.Init();
   adc.set_reference(ADC_DEFAULT);
   adc.set_alignment(ADC_LEFT_ALIGNED);
   adc.StartConversion(0);
-  
-  uint8_t configuration_byte = ~eeprom_read_byte((uint8_t*) 0);
-  toggle_mode[0] = configuration_byte & 1;
-  latch_mode[0] = configuration_byte & 2;
-  toggle_mode[1] = configuration_byte & 4;
-  latch_mode[1] = configuration_byte & 8;
-  
+
   led_state[0] = led_state[1] = 0;
   switch_state[0] = switch_state[1] = false;
-  
+
   TCCR1A = 0;
   TCCR1B = 5;
+
 }
 
 bool Read(uint8_t channel) {
@@ -157,23 +144,13 @@ bool ReadSwitch(uint8_t channel) {
   return channel == 0 ? !switch_1.value() : !switch_2.value();
 }
 
-void GateOn(uint8_t channel, bool outcome) {
+void GateOn(uint8_t channel) {
   if (channel == 0) {
-    if (outcome) {
-      out_1_a.Low();
-      out_1_b.High();
-    } else {
-      out_1_a.High();
-      out_1_b.Low();
-    }
+    out_1_a.High();
+    out_1_b.High();
   } else {
-    if (outcome) {
-      out_2_a.Low();
-      out_2_b.High();
-    } else {
-      out_2_a.High();
-      out_2_b.Low();
-    }
+    out_2_a.High();
+    out_2_b.High();
   }
 }
 
@@ -197,13 +174,43 @@ void LedOff(uint8_t channel) {
   }
 }
 
-void DisplayConfigurationAndSave(uint8_t channel) {
-  uint8_t configuration_byte = 0;
-  if (toggle_mode[0]) configuration_byte |= 1;
-  if (latch_mode[0]) configuration_byte |= 2;
-  if (toggle_mode[1]) configuration_byte |= 4;
-  if (latch_mode[1]) configuration_byte |= 8;
-  eeprom_write_byte((uint8_t*) 0, ~configuration_byte);
+void RecordClock(uint8_t channel) {
+  // shift
+  for (uint8_t i = kClockBufferSize-1; i > 0; i--)
+  {
+    if (clock[channel][i] > 0) {
+      clock[channel][i-1] = clock[channel][i];
+    }
+  }
+  // record
+  clock[channel][kClockBufferSize - 1] = TCNT1;
+}
+
+// Has enough clock been recorded that it's possible to div/mult ?
+bool IsClockComputable(uint8_t channel) {
+  return (clock[channel][kClockBufferSize - 1] > 0 && clock[channel][kClockBufferSize - 2] > 0);
+}
+
+// Absolute clock factor
+uint16_t AbsClockFactor(uint8_t channel) {
+  int const mask = clock_factor[channel] >> sizeof(int16_t) * 7;
+  return (clock_factor[channel] + mask) ^ mask;
+}
+
+// Compute the next time that the module should output non-clock thru
+uint16_t NextOutputTime(uint8_t channel) {
+  // what was the last recorded period ?
+  uint16_t period = clock[channel][kClockBufferSize - 1] - clock[channel][kClockBufferSize - 2];
+
+  uint16_t abs_factor = AbsClockFactor(channel);
+
+  // when should the next output happen?
+  return (clock_factor[channel] > 0) ? (period / abs_factor) : (period * abs_factor);
+}
+
+void CalculateFactor(uint8_t channel) {
+  int16_t bipolar = factor_control[channel] - 32767;
+  clock_factor[channel] = (bipolar == 0) ? 0 : bipolar / kFactorScaleFactor;
 }
 
 int main(void) {
@@ -211,63 +218,53 @@ int main(void) {
   Init();
 
   input_state[0] = input_state[1] = false;
-  rng_state = 1;
   while (1) {
-    // Whenever an ADC cycle is finished, update the probability variables.
+
+    // Scan VC/Pot
     if (adc.ready()) {
       uint8_t channel_index = 1 - adc_channel;  // ADC pins are swapped!
-      p[channel_index] = pgm_read_word(linear_table + adc.ReadOut8());
+      // record last position
+      last_factor_control[channel_index] = factor_control[channel_index];
+      // update current position
+      factor_control[channel_index] = pgm_read_word(linear_table + adc.ReadOut8());
       adc_channel = (adc_channel + 1) & 1;
       adc.StartConversion(adc_channel);
     }
-    
-    // Scan switches
-    for (uint8_t i = 0; i < 2; ++i) {
-      bool new_input_state = ReadSwitch(i);
-      if (!switch_state[i] && new_input_state) {
-        press_time[i] = TCNT1;
-        inhibit_switch[i] = false;
-      }
-      if (switch_state[i] && !inhibit_switch[i]) {
-        uint16_t this_press_time = TCNT1 - press_time[i];
-        if (this_press_time >= kLongPressTime) {
-          inhibit_switch[i] = true;
-          latch_mode[i] = !latch_mode[i];
-          DisplayConfigurationAndSave(i);
-        } else if (this_press_time >= 64 && !new_input_state) {
-          toggle_mode[i] = !toggle_mode[i];
-          DisplayConfigurationAndSave(i);
-        }
-      }
-      switch_state[i] = new_input_state;
-    }
-    
+
     // Scan inputs
-    uint32_t random_words = rng_state;
     for (uint8_t i = 0; i < 2; ++i) {
       bool new_input_state = Read(i);
-      
-      if (new_input_state || latch_mode[i]) {
-        // Hold the LED while the trigger is high or when in latch mode
-        led_gate_delay[i] = kLedGateDelay;
-      }
-      
+      bool is_clock = false;
+      bool should_output = false;
+
       if (new_input_state && !input_state[i] /* Rising edge */) {
-        uint16_t random = random_words & 0xffff;
-        uint16_t threshold = p[i];
-        bool outcome = random >= threshold && threshold != 65535;
-        if (toggle_mode[i]) {
-          outcome = outcome ^ previous_state[i];
+        RecordClock(i);
+        // always output on clock input
+        is_clock = true;
+        should_output = true;
+
+      } else {
+        // has the factor control changed
+        if (factor_control[i] != last_factor_control[i]) {
+          CalculateFactor(i);
         }
-        previous_state[i] = outcome;
-        GateOn(i, outcome);
-        led_state[i] = outcome ? 1 : 2;
-      } else if (!new_input_state && input_state[i] && !latch_mode[i]) {
+        // check if it should output div/mult
+        if (IsClockComputable(i)) {
+          // is that the current time?
+          should_output = (TCNT1 - clock[i][kClockBufferSize - 1] == NextOutputTime(i));
+        }
+      }
+
+      // do stuff
+      if (should_output) {
+        GateOn(i);
+        led_gate_delay[i] = kLedGateDelay;
+        led_state[i] = is_clock ? 1 : 2;
+      } else {
         GateOff(i);
       }
       input_state[i] = new_input_state;
-      random_words >>= 16;
-      
+
       if (led_gate_delay[i]) {
         --led_gate_delay[i];
         if (!led_gate_delay[i]) {
@@ -275,7 +272,7 @@ int main(void) {
         }
       }
     }
-    
+
     // Refresh LEDs
     if (led_state[0] == 0) {
       led_1_a.Low();
@@ -287,7 +284,7 @@ int main(void) {
       led_1_a.High();
       led_1_k.Low();
     }
-    
+
     if (led_state[1] == 0) {
       led_2_a.Low();
       led_2_k.Low();
@@ -299,7 +296,5 @@ int main(void) {
       led_2_k.Low();
     }
 
-    // rng_state = rng_state * 1664525 + 1013904223;
-    rng_state = (rng_state >> 1) ^ (-(rng_state & 1u) & 0xD0000001u);
   }
 }

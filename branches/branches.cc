@@ -40,7 +40,8 @@ Gpio<PortC, 3> switch_1;
 Adc adc;
 
 const uint16_t kLongPressTime = 6250;  // 800 * 8000 / 1024
-const uint16_t kLedGateDelay = 0x100;
+const uint16_t kLedClockGateDelay = 0x100;
+const uint16_t kLedFactoredGateDelay = 0x080;
 
 static uint8_t adc_channel;
 
@@ -53,11 +54,17 @@ uint8_t led_state[2];
 uint16_t led_gate_delay[2];
 
 const uint8_t kFactorScaleFactor = 4095;
-const uint8_t kClockBufferSize = 20;
+const uint8_t kClockBufferSize = 10;
+const bool kIsLocking = false;
+
+uint16_t factor_control[2];
+uint16_t last_factor_control[2];
+
 uint16_t clock[2][kClockBufferSize];
 int8_t clock_factor[2];
-static uint16_t factor_control[2];
-static uint16_t last_factor_control[2];
+int8_t div_counter[2];
+uint16_t last_factored_time[2];
+uint16_t period_[2];
 
 const prog_uint16_t linear_table[] PROGMEM = {
       0,     0,   259,   518,   777,  1036,  1295,  1554,
@@ -133,7 +140,6 @@ void Init() {
 
   TCCR1A = 0;
   TCCR1B = 5;
-
 }
 
 bool Read(uint8_t channel) {
@@ -174,46 +180,68 @@ void LedOff(uint8_t channel) {
   }
 }
 
-void RecordClock(uint8_t channel) {
-  // shift
-  for (uint8_t i = kClockBufferSize-1; i > 0; i--)
-  {
-    if (clock[channel][i] > 0) {
-      clock[channel][i-1] = clock[channel][i];
-    }
+void ClearClockBuffer(uint8_t channel) {
+  for (uint8_t i = 0; i < kClockBufferSize; i++) {
+    clock[channel][i] = 0;
   }
-  // record
-  clock[channel][kClockBufferSize - 1] = TCNT1;
+}
+
+void RecordClock(uint8_t channel) {
+  if (clock[channel][kClockBufferSize - 1] != TCNT1) {
+    period_[channel] = 0;
+    // shift
+    for (uint8_t i = kClockBufferSize-1; i > 0; i--) {
+      if (clock[channel][i] > 0) {
+        clock[channel][i-1] = clock[channel][i];
+      }
+    }
+    // record
+    clock[channel][kClockBufferSize - 1] = TCNT1;
+  }
 }
 
 // Has enough clock been recorded that it's possible to div/mult ?
-bool IsClockComputable(uint8_t channel) {
+bool IsClockMultipliable(uint8_t channel) {
   return (clock[channel][kClockBufferSize - 1] > 0 && clock[channel][kClockBufferSize - 2] > 0);
 }
 
-// Absolute clock factor
-uint16_t AbsClockFactor(uint8_t channel) {
-  int const mask = clock_factor[channel] >> sizeof(int16_t) * 7;
-  return (clock_factor[channel] + mask) ^ mask;
+uint16_t GetPeriod(uint8_t channel) {
+  if (period_[channel] == 0) {
+    period_[channel] = clock[channel][kClockBufferSize - 1] - clock[channel][kClockBufferSize - 2];
+  }
+  return period_[channel];
 }
 
-// Compute the next time that the module should output non-clock thru
-uint16_t NextOutputTime(uint8_t channel) {
+// Compute the period between non-clock outputs
+uint16_t Interval(uint8_t channel) {
   // what was the last recorded period ?
-  uint16_t period = clock[channel][kClockBufferSize - 1] - clock[channel][kClockBufferSize - 2];
+  uint16_t period = GetPeriod(channel);
 
-  uint16_t abs_factor = AbsClockFactor(channel);
-
-  // when should the next output happen?
-  return (clock_factor[channel] > 0) ? (period / abs_factor) : (period * abs_factor);
+  if (clock_factor[channel] == 0) {
+    return period;
+  } else if (clock_factor[channel] > 0) {
+    return period * clock_factor[channel];
+  } else {
+    return period / (clock_factor[channel] * -1);
+  }
 }
 
 void CalculateFactor(uint8_t channel) {
   int16_t bipolar = factor_control[channel] - 32767;
   clock_factor[channel] = (bipolar == 0) ? 0 : bipolar / kFactorScaleFactor;
+  //clock_factor[channel] = 2;
+  for (uint8_t i = 0; i < 17; i++) {
+    uint16_t scaled = 65535 - (4096 * i) || 0;
+    if (factor_control[channel] >= scaled) {
+      clock_factor[channel] = scaled - 8;
+    } else {
+      break;
+    }
+  }
 }
 
 int main(void) {
+
   ResetWatchdog();
   Init();
 
@@ -238,28 +266,53 @@ int main(void) {
       bool should_output = false;
 
       if (new_input_state && !input_state[i] /* Rising edge */) {
+        // has the factor control changed
+        //if (last_factor_control[i] == factor_control[i]) {
+          CalculateFactor(i);
+        //}
         RecordClock(i);
         // always output on clock input
         is_clock = true;
         should_output = true;
 
-      } else {
-        // has the factor control changed
-        if (factor_control[i] != last_factor_control[i]) {
-          CalculateFactor(i);
+        // clock divider
+        if (clock_factor[i] > 0) {
+          if (div_counter[i] == clock_factor[i]) {
+            is_clock = false;
+            div_counter[i] = 0;
+          } else {
+            div_counter[i]++;
+          }
         }
-        // check if it should output div/mult
-        if (IsClockComputable(i)) {
+      }
+
+      // check if it should output multiplied clock
+      if (clock_factor[i] < 0 && IsClockMultipliable(i)) {
+        // look for clock overflow
+        if (last_factored_time[i] > TCNT1) {
+          ClearClockBuffer(i);
+          period_[i] = 0;
+          last_factored_time[i] = 0;
+        } else {
+          uint16_t elapsed = TCNT1 - last_factored_time[i];
           // is that the current time?
-          should_output = (TCNT1 - clock[i][kClockBufferSize - 1] == NextOutputTime(i));
+          if (elapsed == Interval(i)) {
+            last_factored_time[i] = TCNT1;
+            should_output = true;
+          }
         }
       }
 
       // do stuff
       if (should_output) {
         GateOn(i);
-        led_gate_delay[i] = kLedGateDelay;
-        led_state[i] = is_clock ? 1 : 2;
+        if (is_clock) {
+          led_gate_delay[i] = kLedClockGateDelay;
+          led_state[i] = 1;
+        } else {
+          led_gate_delay[i] = kLedFactoredGateDelay;
+          led_state[i] = 2;
+        }
       } else {
         GateOff(i);
       }

@@ -18,8 +18,8 @@ using namespace avrlib;
 
 enum LedState {
   LED_STATE_OFF,
-  LED_STATE_RED,
-  LED_STATE_GREEN
+  LED_STATE_GREEN,
+  LED_STATE_RED
 };
 
 enum AdcChannel {
@@ -46,7 +46,7 @@ Gpio<PortC, 3> switch_1;
 AdcInputScanner adc;
 
 const uint16_t kLongPressTime = 6250;  // 800 * 8000 / 1024
-const uint16_t kLedClockGateDuration = 0x100;
+const uint16_t kLedThruGateDuration = 0x100;
 const uint16_t kLedFactoredGateDuration = 0x100;
 
 static uint8_t adc_channel;
@@ -318,6 +318,36 @@ void LedRed(uint8_t channel) {
   }
 }
 
+void LedExecThru(uint8_t channel) {
+  led_gate_duration[channel] = kLedThruGateDuration;
+  led_state[channel] = LED_STATE_GREEN;
+}
+
+void LedExecFactored(uint8_t channel) {
+  led_gate_duration[channel] = kLedFactoredGateDuration;
+  led_state[channel] = LED_STATE_RED;
+}
+
+void LedsUpdate(uint8_t channel) {
+  //
+  if (led_gate_duration[channel]) {
+    --led_gate_duration[channel];
+    if (!led_gate_duration[channel]) {
+      led_state[channel] = 0;
+    }
+  }
+
+  // Update Leds
+  switch (led_state[channel]) {
+    case LED_STATE_OFF: LedOff(channel);
+                        break;
+    case LED_STATE_GREEN: LedGreen(channel);
+                          break;
+    case LED_STATE_RED: LedRed(channel);
+                        break;
+  }
+}
+
 int main(void) {
 
   ResetWatchdog();
@@ -330,69 +360,51 @@ int main(void) {
     // Scan inputs
     for (uint8_t i = 0; i < 2; ++i) {
       bool new_gate_input_state = Read(i);
-      bool should_output_clock = false;
-      bool should_output = false;
+      bool should_exec_thru = false;
+      bool should_exec = false;
 
       AdcPoll(i);
       ClockHandleOverflow(i);
 
       if (new_gate_input_state && !gate_input_state[i] /* Rising edge */) {
+        // Pulse tracker is always recording even though it's only used by
+        // multiply factors.  this is to allow for smooth transition from divide
+        // to multiply
         PulseTrackerRecord(i);
-        // clock divider
+
         if (DivideIsEnabled(i)) {
           if (DivideShouldDoOutput(i)) {
-            should_output = true;
+            should_exec = true;
             last_output_time[i] = TCNT1;
             divide_counter[i] = 0;
           } else {
             ++divide_counter[i];
           }
-        } else {
+        } else { // bypass or multiply
           divide_counter[i] = 0;
           multiply_is_debouncing[i] = false;
           last_output_time[i] = TCNT1;
-          should_output = true;
-          should_output_clock = true;
+          should_exec = true;
+          should_exec_thru = true;
         }
       }
       if (MultiplyIsEnabled(i) &&
             MultiplyIsPossible(i) &&
             MultiplyShouldDoOutput(i, PulseTrackerGetElapsed(i))) {
         last_output_time[i] = TCNT1;
-        should_output = true;
+        should_exec = true;
       }
 
-      // do stuff
-      if (should_output) {
+      // Do stuff
+      if (should_exec) {
         GateOn(i);
-        if (should_output_clock) {
-          led_gate_duration[i] = kLedClockGateDuration;
-          led_state[i] = 1;
-        } else {
-          led_gate_duration[i] = kLedFactoredGateDuration;
-          led_state[i] = 2;
-        }
+        should_exec_thru ? LedExecThru(i) : LedExecFactored(i);
       } else {
         GateOff(i);
       }
       gate_input_state[i] = new_gate_input_state;
 
-      if (led_gate_duration[i]) {
-        --led_gate_duration[i];
-        if (!led_gate_duration[i]) {
-          led_state[i] = 0;
-        }
-      }
-
-      // Update Leds
-      switch (led_state[i]) {
-        case 0: LedOff(i);
-                break;
-        case 1: LedGreen(i);
-                break;
-        case 2: LedRed(i);
-                break;
-      }
+      LedsUpdate(i);
     }
 
   }

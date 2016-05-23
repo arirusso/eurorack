@@ -247,12 +247,12 @@ bool DivideShouldExec(uint8_t channel) {
   return divide_counter[channel] >= (factor[channel] - 1);
 }
 
-void FactorUpdate(uint8_t channel) {
+int8_t FactorGet(uint8_t channel) {
   uint16_t factor_index = factors_num_available - (factor_control_value[channel]/factors_index_ratio);
   // correcting for weird adc value
   factor_index = (factor_index == 0) ? factors_num_available - 1 : factor_index - 1;
   //
-  factor[channel] = kFactors[factor_index];
+  return kFactors[factor_index];
 }
 
 void AdcScan() {
@@ -264,7 +264,7 @@ void AdcScan() {
   }
 }
 
-void AdcPoll(uint8_t channel) {
+bool AdcHasNewValue(uint8_t channel) {
   if (adc_counter == (kAdcPollRatio-1)) {
     int16_t value = adc.Read8((channel == 0) ? 1 : 0);
     int16_t delta = value - factor_control_value[channel];
@@ -274,9 +274,10 @@ void AdcPoll(uint8_t channel) {
     }
     if (delta > kAdcDeltaThreshold) {
       factor_control_value[channel] = value;
-      FactorUpdate(channel);
+      return true;
     }
   }
+  return false;
 }
 
 void ClockHandleOverflow(uint8_t channel) {
@@ -365,8 +366,10 @@ int main(void) {
       bool should_exec_thru = false;
       bool should_exec = false;
 
-      AdcPoll(i);
       ClockHandleOverflow(i);
+      if (AdcHasNewValue(i)) {
+        factor[i] = FactorGet(i);
+      }
 
       if (new_gate_input_state && !gate_input_state[i] /* Rising edge */) {
         // Pulse tracker is always recording even though it's only used by

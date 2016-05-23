@@ -362,12 +362,13 @@ int main(void) {
       }
 
       // Update Leds
-      if (led_state[i] == 0) {
-        LedOff(i);
-      } else if (led_state[i] == 1) {
-        LedGreen(i);
-      } else {
-        LedRed(i);
+      switch (led_state[i]) {
+        case 0: LedOff(i);
+                break;
+        case 1: LedGreen(i);
+                break;
+        case 2: LedRed(i);
+                break;
       }
     }
 

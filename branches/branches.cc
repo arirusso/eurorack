@@ -61,7 +61,8 @@ uint16_t led_gate_duration[2];
 
 const uint8_t kPulseTrackerBufferSize = 10;
 const uint8_t kMultiplyErrorCorrectionAmount = 12;
-const uint8_t kAdcRatio = 5; // 1:5
+const uint8_t kAdcPollRatio = 5; // 1:5
+const uint8_t kAdcDeltaThreshold = 12;
 const int8_t kFactors[] = { -8, -7, -6, -5, -4, -3, -2, 0, 2, 3, 4, 5, 6, 7, 8 };
 
 uint16_t pulse_tracker_buffer[2][kPulseTrackerBufferSize];
@@ -217,7 +218,7 @@ bool MultiplyIsEnabled(uint8_t channel) {
   return factor[channel] < 0;
 }
 
-// Have enough events been recorded that it's possible to multiply ?
+// Is the pulse tracker populated with enough events to perform multiply?
 bool MultiplyIsPossible(uint8_t channel) {
   return (pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] > 0 && pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2] > 0);
 }
@@ -254,7 +255,7 @@ void FactorUpdate(uint8_t channel) {
 }
 
 void AdcScan() {
-  if (adc_counter == (kAdcRatio-1)) {
+  if (adc_counter == (kAdcPollRatio-1)) {
     adc.Scan();
     adc_counter = 0;
   } else {
@@ -263,14 +264,14 @@ void AdcScan() {
 }
 
 void AdcPoll(uint8_t channel) {
-  if (adc_counter == (kAdcRatio-1)) {
+  if (adc_counter == (kAdcPollRatio-1)) {
     int16_t value = adc.Read8((channel == 0) ? 1 : 0);
     int16_t delta = value - factor_control_value[channel];
     // abs
     if (delta < 0) {
       delta = -delta;
     }
-    if (delta > 12) {
+    if (delta > kAdcDeltaThreshold) {
       factor_control_value[channel] = value;
       FactorUpdate(channel);
     }

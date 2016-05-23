@@ -243,7 +243,7 @@ bool DivideIsEnabled(uint8_t channel) {
 }
 
 bool DivideShouldExec(uint8_t channel) {
-  return (divide_counter[channel] == (factor[channel] - 1));
+  return (divide_counter[channel] >= (factor[channel] - 1));
 }
 
 void FactorUpdate(uint8_t channel) {

@@ -77,27 +77,33 @@ uint8_t adc_counter;
 uint8_t factor_index_ratio;
 uint8_t num_factors;
 
-void Init() {
-  Gpio<PortB, 4>::set_mode(DIGITAL_OUTPUT);
-  Gpio<PortB, 4>::Low();
-
+void GateInputsInit() {
   in_1.set_mode(DIGITAL_INPUT);
   in_2.set_mode(DIGITAL_INPUT);
   in_1.High();
   in_2.High();
+}
 
+void SwitchesInit() {
   switch_1.set_mode(DIGITAL_INPUT);
   switch_2.set_mode(DIGITAL_INPUT);
   switch_1.High();
   switch_2.High();
 
+  switch_state[0] = switch_state[1] = false;
+}
+
+void GateOutputsInit() {
   out_1_a.set_mode(DIGITAL_OUTPUT);
   out_1_b.set_mode(DIGITAL_OUTPUT);
+  out_2_a.set_mode(DIGITAL_OUTPUT);
+  out_2_b.set_mode(DIGITAL_OUTPUT);
+}
+
+void LedsInit() {
   led_1_a.set_mode(DIGITAL_OUTPUT);
   led_1_k.set_mode(DIGITAL_OUTPUT);
 
-  out_2_a.set_mode(DIGITAL_OUTPUT);
-  out_2_b.set_mode(DIGITAL_OUTPUT);
   led_2_a.set_mode(DIGITAL_OUTPUT);
   led_2_k.set_mode(DIGITAL_OUTPUT);
 
@@ -106,20 +112,36 @@ void Init() {
   led_1_k.Low();
   led_2_k.Low();
 
+  led_state[0] = led_state[1] = 0;
+}
+
+void AdcInit() {
   adc.Init();
   adc.set_num_inputs(ADC_CHANNEL_LAST);
   Adc::set_reference(ADC_DEFAULT);
   Adc::set_alignment(ADC_LEFT_ALIGNED);
   adc_counter = 1;
+}
 
-  led_state[0] = led_state[1] = 0;
-  switch_state[0] = switch_state[1] = false;
+void FactorInit() {
+  num_factors = sizeof(kFactors)/sizeof(kFactors[0]);
+  factor_index_ratio = 255/(num_factors-1);
+}
+
+void Init() {
+  Gpio<PortB, 4>::set_mode(DIGITAL_OUTPUT);
+  Gpio<PortB, 4>::Low();
+
+  GateInputsInit();
+  SwitchesInit();
+  GateOutputsInit();
+  LedsInit();
+  AdcInit();
 
   TCCR1A = 0;
   TCCR1B = 5;
 
-  num_factors = sizeof(kFactors)/sizeof(kFactors[0]);
-  factor_index_ratio = 255/(num_factors-1);
+  FactorInit();
 }
 
 bool Read(uint8_t channel) {
@@ -222,7 +244,7 @@ bool DivideShouldDoOutput(uint8_t channel) {
   return (divide_counter[channel] == (clock_factor[channel] - 1));
 }
 
-void UpdateFactor(uint8_t channel) {
+void FactorUpdate(uint8_t channel) {
   uint16_t factor_index = num_factors - (factor_control_value[channel]/factor_index_ratio);
   // correcting for weird adc value
   factor_index = (factor_index == 0) ? num_factors - 1 : factor_index - 1;
@@ -249,7 +271,7 @@ void AdcPoll(uint8_t channel) {
     }
     if (delta > 12) {
       factor_control_value[channel] = value;
-      UpdateFactor(channel);
+      FactorUpdate(channel);
     }
   }
 }

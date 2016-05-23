@@ -220,14 +220,15 @@ bool MultiplyIsEnabled(uint8_t channel) {
 
 // Is the pulse tracker populated with enough events to perform multiply?
 bool MultiplyIsPossible(uint8_t channel) {
-  return (pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] > 0 && pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2] > 0);
+  return pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] > 0 &&
+    pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2] > 0;
 }
 
 // The time interval between multiplied events
 // eg if clock is comes in at 100 and 200, and the clock multiply factor is 2,
 // the result will be 50
 uint16_t MultiplyInterval(uint8_t channel) {
-  return (PulseTrackerGetPeriod(channel) / -factor[channel]);
+  return PulseTrackerGetPeriod(channel) / -factor[channel];
 }
 
 bool MultiplyShouldExec(uint8_t channel, uint16_t elapsed) {
@@ -243,7 +244,7 @@ bool DivideIsEnabled(uint8_t channel) {
 }
 
 bool DivideShouldExec(uint8_t channel) {
-  return (divide_counter[channel] >= (factor[channel] - 1));
+  return divide_counter[channel] >= (factor[channel] - 1);
 }
 
 void FactorUpdate(uint8_t channel) {

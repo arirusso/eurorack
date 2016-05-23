@@ -319,6 +319,7 @@ int main(void) {
         if (DivideIsEnabled(i)) {
           if (DivideShouldDoOutput(i)) {
             should_output = true;
+            last_output_time[i] = TCNT1;
             divide_counter[i] = 0;
           } else {
             ++divide_counter[i];
@@ -326,15 +327,16 @@ int main(void) {
         } else {
           divide_counter[i] = 0;
           multiply_is_debouncing[i] = false;
+          last_output_time[i] = TCNT1;
           should_output = true;
           should_output_clock = true;
         }
-        last_output_time[i] = TCNT1;
-      } else if (MultiplyIsEnabled(i) &&
+      }
+      if (MultiplyIsEnabled(i) &&
             MultiplyIsPossible(i) &&
             MultiplyShouldDoOutput(i, PulseTrackerGetElapsed(i))) {
-          last_output_time[i] = TCNT1;
-          should_output = true;
+        last_output_time[i] = TCNT1;
+        should_output = true;
       }
 
       // do stuff

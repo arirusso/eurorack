@@ -153,7 +153,7 @@ bool ReadSwitch(uint8_t channel) {
   return channel == 0 ? !switch_1.value() : !switch_2.value();
 }
 
-void GateOn(uint8_t channel) {
+void GateOutputOn(uint8_t channel) {
   switch (channel) {
     case 0: out_1_a.High();
             out_1_b.High();
@@ -164,7 +164,7 @@ void GateOn(uint8_t channel) {
   }
 }
 
-void GateOff(uint8_t channel) {
+void GateOutputOff(uint8_t channel) {
   switch (channel) {
     case 0: out_1_a.Low();
             out_1_b.Low();
@@ -229,7 +229,7 @@ uint16_t MultiplyInterval(uint8_t channel) {
   return (PulseTrackerGetPeriod(channel) / -factor[channel]);
 }
 
-bool MultiplyShouldDoOutput(uint8_t channel, uint16_t elapsed) {
+bool MultiplyShouldExec(uint8_t channel, uint16_t elapsed) {
   uint16_t interval = MultiplyInterval(channel);
   multiply_is_debouncing[channel] = (!multiply_is_debouncing[channel] &&
     (elapsed % interval <= kMultiplyErrorCorrectionAmount));
@@ -241,7 +241,7 @@ bool DivideIsEnabled(uint8_t channel) {
   return factor[channel] > 0;
 }
 
-bool DivideShouldDoOutput(uint8_t channel) {
+bool DivideShouldExec(uint8_t channel) {
   return (divide_counter[channel] == (factor[channel] - 1));
 }
 
@@ -373,7 +373,7 @@ int main(void) {
         PulseTrackerRecord(i);
 
         if (DivideIsEnabled(i)) {
-          if (DivideShouldDoOutput(i)) {
+          if (DivideShouldExec(i)) {
             should_exec = true;
             last_output_time[i] = TCNT1;
             divide_counter[i] = 0;
@@ -390,17 +390,17 @@ int main(void) {
       }
       if (MultiplyIsEnabled(i) &&
             MultiplyIsPossible(i) &&
-            MultiplyShouldDoOutput(i, PulseTrackerGetElapsed(i))) {
+            MultiplyShouldExec(i, PulseTrackerGetElapsed(i))) {
         last_output_time[i] = TCNT1;
         should_exec = true;
       }
 
       // Do stuff
       if (should_exec) {
-        GateOn(i);
+        GateOutputOn(i);
         should_exec_thru ? LedExecThru(i) : LedExecFactored(i);
       } else {
-        GateOff(i);
+        GateOutputOff(i);
       }
       gate_input_state[i] = new_gate_input_state;
 

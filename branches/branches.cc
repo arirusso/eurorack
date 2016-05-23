@@ -12,7 +12,6 @@
 #include "avrlib/adc.h"
 #include "avrlib/boot.h"
 #include "avrlib/gpio.h"
-#include "avrlib/op.h"
 #include "avrlib/watchdog_timer.h"
 
 using namespace avrlib;

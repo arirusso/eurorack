@@ -64,18 +64,19 @@ const uint8_t kMultiplyErrorCorrectionAmount = 12;
 const uint8_t kAdcRatio = 5; // 1:5
 const int8_t kFactors[] = { -8, -7, -6, -5, -4, -3, -2, 0, 2, 3, 4, 5, 6, 7, 8 };
 
-int16_t factor_control_value[2];
+uint16_t pulse_tracker_buffer[2][kPulseTrackerBufferSize];
+uint16_t pulse_tracker_period_[2];
 
-uint16_t clock[2][kPulseTrackerBufferSize];
-int8_t clock_factor[2];
 int8_t divide_counter[2];
 bool multiply_is_debouncing[2];
-uint16_t last_output_time[2];
-uint16_t period_[2];
 
+uint16_t last_output_time[2];
 uint8_t adc_counter;
-uint8_t factor_index_ratio;
-uint8_t num_factors;
+
+int8_t factor[2];
+int16_t factor_control_value[2];
+uint8_t factors_index_ratio;
+uint8_t factors_num_available;
 
 void GateInputsInit() {
   in_1.set_mode(DIGITAL_INPUT);
@@ -124,8 +125,8 @@ void AdcInit() {
 }
 
 void FactorInit() {
-  num_factors = sizeof(kFactors)/sizeof(kFactors[0]);
-  factor_index_ratio = 255/(num_factors-1);
+  factors_num_available = sizeof(kFactors)/sizeof(kFactors[0]);
+  factors_index_ratio = 255/(factors_num_available-1);
 }
 
 void Init() {
@@ -176,56 +177,56 @@ void GateOff(uint8_t channel) {
 
 void PulseTrackerClear(uint8_t channel) {
   for (uint8_t i = 0; i < kPulseTrackerBufferSize; ++i) {
-    clock[channel][i] = 0;
+    pulse_tracker_buffer[channel][i] = 0;
   }
 }
 
 uint16_t PulseTrackerGetElapsed(uint8_t channel) {
-  return TCNT1 - clock[channel][kPulseTrackerBufferSize - 1];
+  return TCNT1 - pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1];
 }
 
 // The period of time between the last two recorded events
 uint16_t PulseTrackerGetPeriod(uint8_t channel) {
-  if (period_[channel] == 0) {
-    period_[channel] = clock[channel][kPulseTrackerBufferSize - 1] - clock[channel][kPulseTrackerBufferSize - 2];
+  if (pulse_tracker_period_[channel] == 0) {
+    pulse_tracker_period_[channel] = pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] - pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2];
   }
-  return period_[channel];
+  return pulse_tracker_period_[channel];
 }
 
 void PulseTrackerRecord(uint8_t channel) {
-  if (clock[channel][kPulseTrackerBufferSize - 1] != TCNT1) {
-    period_[channel] = 0;
+  if (pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] != TCNT1) {
+    pulse_tracker_period_[channel] = 0;
     // shift
     for (uint8_t i = kPulseTrackerBufferSize-1; i > 0; i--) {
-      if (clock[channel][i] > 0) {
-        clock[channel][i-1] = clock[channel][i];
+      if (pulse_tracker_buffer[channel][i] > 0) {
+        pulse_tracker_buffer[channel][i-1] = pulse_tracker_buffer[channel][i];
       }
     }
     // record
-    clock[channel][kPulseTrackerBufferSize - 1] = TCNT1;
+    pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] = TCNT1;
   }
 }
 
 // Is the factor control setting in bypass mode? (zero)
 bool BypassIsEnabled(uint8_t channel) {
-  return clock_factor[channel] == 0;
+  return factor[channel] == 0;
 }
 
 // Is the factor control setting such that we're in multiplier mode?
 bool MultiplyIsEnabled(uint8_t channel) {
-  return clock_factor[channel] < 0;
+  return factor[channel] < 0;
 }
 
 // Have enough events been recorded that it's possible to multiply ?
 bool MultiplyIsPossible(uint8_t channel) {
-  return (clock[channel][kPulseTrackerBufferSize - 1] > 0 && clock[channel][kPulseTrackerBufferSize - 2] > 0);
+  return (pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] > 0 && pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2] > 0);
 }
 
 // The time interval between multiplied events
 // eg if clock is comes in at 100 and 200, and the clock multiply factor is 2,
 // the result will be 50
 uint16_t MultiplyInterval(uint8_t channel) {
-  return (PulseTrackerGetPeriod(channel) / -clock_factor[channel]);
+  return (PulseTrackerGetPeriod(channel) / -factor[channel]);
 }
 
 bool MultiplyShouldDoOutput(uint8_t channel, uint16_t elapsed) {
@@ -237,19 +238,19 @@ bool MultiplyShouldDoOutput(uint8_t channel, uint16_t elapsed) {
 
 // Is the factor control setting such that we're in divider mode?
 bool DivideIsEnabled(uint8_t channel) {
-  return clock_factor[channel] > 0;
+  return factor[channel] > 0;
 }
 
 bool DivideShouldDoOutput(uint8_t channel) {
-  return (divide_counter[channel] == (clock_factor[channel] - 1));
+  return (divide_counter[channel] == (factor[channel] - 1));
 }
 
 void FactorUpdate(uint8_t channel) {
-  uint16_t factor_index = num_factors - (factor_control_value[channel]/factor_index_ratio);
+  uint16_t factor_index = factors_num_available - (factor_control_value[channel]/factors_index_ratio);
   // correcting for weird adc value
-  factor_index = (factor_index == 0) ? num_factors - 1 : factor_index - 1;
+  factor_index = (factor_index == 0) ? factors_num_available - 1 : factor_index - 1;
   //
-  clock_factor[channel] = kFactors[factor_index];
+  factor[channel] = kFactors[factor_index];
 }
 
 void AdcScan() {
@@ -279,7 +280,7 @@ void AdcPoll(uint8_t channel) {
 void ClockHandleOverflow(uint8_t channel) {
   if (last_output_time[channel] > TCNT1) {
     PulseTrackerClear(channel);
-    period_[channel] = 0;
+    pulse_tracker_period_[channel] = 0;
     last_output_time[channel] = 0;
   }
 }

@@ -84,6 +84,8 @@ void GateInputsInit() {
   in_2.set_mode(DIGITAL_INPUT);
   in_1.High();
   in_2.High();
+
+  gate_input_state[0] = gate_input_state[1] = false;
 }
 
 void SwitchesInit() {
@@ -233,9 +235,7 @@ uint16_t MultiplyInterval(uint8_t channel) {
 
 bool MultiplyShouldExec(uint8_t channel, uint16_t elapsed) {
   uint16_t interval = MultiplyInterval(channel);
-  multiply_is_debouncing[channel] = (!multiply_is_debouncing[channel] &&
-    (elapsed % interval <= kMultiplyErrorCorrectionAmount));
-  return multiply_is_debouncing[channel];
+  return (!multiply_is_debouncing[channel] && (elapsed % interval <= kMultiplyErrorCorrectionAmount));
 }
 
 // Is the factor control setting such that we're in divider mode?
@@ -245,6 +245,10 @@ bool DivideIsEnabled(uint8_t channel) {
 
 bool DivideShouldExec(uint8_t channel) {
   return divide_counter[channel] >= (factor[channel] - 1);
+}
+
+void DivideReset(uint8_t channel) {
+  divide_counter[channel] = 0;
 }
 
 int8_t FactorGet(uint8_t channel) {
@@ -264,15 +268,22 @@ void AdcScan() {
   }
 }
 
+int16_t AdcReadValue(uint8_t channel) {
+  uint8_t pin = (channel == 0) ? 1 : 0;
+  return adc.Read8(pin);
+}
+
 bool AdcHasNewValue(uint8_t channel) {
   if (adc_counter == (kAdcPollRatio-1)) {
-    int16_t value = adc.Read8((channel == 0) ? 1 : 0);
+    int16_t value = AdcReadValue(channel);
+    // compare to stored factor control value
     int16_t delta = value - factor_control_value[channel];
     // abs
     if (delta < 0) {
       delta = -delta;
     }
     if (delta > kAdcDeltaThreshold) {
+      // store factor control value
       factor_control_value[channel] = value;
       return true;
     }
@@ -351,18 +362,24 @@ void LedsUpdate(uint8_t channel) {
   }
 }
 
+bool GateInputIsRisingEdge(uint8_t channel) {
+  bool last_state = gate_input_state[channel];
+  // store current input state
+  gate_input_state[channel] = Read(channel);
+  //
+  return gate_input_state[channel] && !last_state;
+}
+
 int main(void) {
 
   ResetWatchdog();
   Init();
 
-  gate_input_state[0] = gate_input_state[1] = false;
   while (1) {
     AdcScan();
 
     // Scan inputs
     for (uint8_t i = 0; i < 2; ++i) {
-      bool new_gate_input_state = Read(i);
       bool should_exec_thru = false;
       bool should_exec = false;
 
@@ -371,7 +388,7 @@ int main(void) {
         factor[i] = FactorGet(i);
       }
 
-      if (new_gate_input_state && !gate_input_state[i] /* Rising edge */) {
+      if (GateInputIsRisingEdge(i)) {
         // Pulse tracker is always recording even though it's only used by
         // multiply factors.  this is to allow for smooth transition from divide
         // to multiply
@@ -379,24 +396,26 @@ int main(void) {
 
         if (DivideIsEnabled(i)) {
           if (DivideShouldExec(i)) {
-            should_exec = true;
+            DivideReset(i);
             last_output_time[i] = TCNT1;
-            divide_counter[i] = 0;
+            should_exec = true;
           } else {
             ++divide_counter[i];
           }
-        } else { // bypass or multiply
-          divide_counter[i] = 0;
-          multiply_is_debouncing[i] = false;
+        } else { // thru
+          DivideReset(i);
           last_output_time[i] = TCNT1;
+          multiply_is_debouncing[i] = false;
           should_exec = true;
           should_exec_thru = true;
         }
       }
+
       if (MultiplyIsEnabled(i) &&
             MultiplyIsPossible(i) &&
             MultiplyShouldExec(i, PulseTrackerGetElapsed(i))) {
         last_output_time[i] = TCNT1;
+        multiply_is_debouncing[i] = true;
         should_exec = true;
       }
 
@@ -407,7 +426,6 @@ int main(void) {
       } else {
         GateOutputOff(i);
       }
-      gate_input_state[i] = new_gate_input_state;
 
       LedsUpdate(i);
     }

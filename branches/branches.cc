@@ -16,11 +16,8 @@
 
 using namespace avrlib;
 
-enum LedState {
-  LED_STATE_OFF,
-  LED_STATE_GREEN,
-  LED_STATE_RED
-};
+#define SYSTEM_NUM_CHANNELS 2
+#define SYSTEM_NUM_GATE_INPUTS 1
 
 enum ChannelMode {
   CHANNEL_FUNCTION_FACTORER,
@@ -28,18 +25,9 @@ enum ChannelMode {
   CHANNEL_FUNCTION_LAST
 };
 
-const uint8_t kSystemNumChannels = 2;
-const uint8_t kSystemNumGateInputs = 1;
-
-const ChannelMode function_table_[kSystemNumChannels] = {
+const ChannelMode function_table_[SYSTEM_NUM_CHANNELS] = {
   CHANNEL_FUNCTION_SWING,
   CHANNEL_FUNCTION_FACTORER
-};
-
-enum AdcChannel {
-  ADC_CHANNEL_2_CV,
-  ADC_CHANNEL_1_CV,
-  ADC_CHANNEL_LAST
 };
 
 Gpio<PortD, 4> in_1;
@@ -59,47 +47,49 @@ Gpio<PortC, 3> switch_1;
 
 AdcInputScanner adc;
 
-const uint16_t kLongPressTime = 6250;  // 800 * 8000 / 1024
-const uint16_t kLedThruGateDuration = 0x100;
-const uint16_t kLedFactoredGateDuration = 0x080;
-const uint16_t kLedReadyGateDuration = 0x0FF;
+//#define BUTTON_LONG_PRESS_TIME 6250  // 800 * 8000 / 1024
+#define LED_THRU_GATE_DURATION 0x100
+#define LED_FACTORED_GATE_DURATION 0x080
+#define LED_READY_GATE_DURATION 0x0FF
+
+#define PULSE_TRACKER_BUFFER_SIZE 2
+#define FUNCTION_TIMING_ERROR_CORRECTION_AMOUNT 12
+#define ADC_POLL_RATIO 5 // 1:5
+#define ADC_DELTA_THRESHOLD 4
+#define SWING_FACTOR_MIN 50
+#define SWING_FACTOR_MAX 70
+#define FACTORER_NUM_FACTORS 15
+#define FACTORER_BYPASS_INDEX 7
+#define ADC_MAX_VALUE 250
+// Top input must be reset since they are hardware normaled
+#define GATE_INPUT_RESET_INDEX 0
+#define GATE_INPUT_TRIG_INDEX 1
 
 static uint8_t adc_channel;
 
-bool gate_input_state[kSystemNumGateInputs];
-bool switch_state[kSystemNumChannels];
-bool inhibit_switch[kSystemNumChannels];
+bool gate_input_state[SYSTEM_NUM_GATE_INPUTS];
+//bool switch_state[SYSTEM_NUM_CHANNELS];
+//bool inhibit_switch[SYSTEM_NUM_CHANNELS];
 
-uint16_t press_time[kSystemNumChannels];
-uint8_t led_state[kSystemNumChannels];
-uint16_t led_gate_duration[kSystemNumChannels];
+//uint16_t press_time[SYSTEM_NUM_CHANNELS];
+uint8_t led_state[SYSTEM_NUM_CHANNELS];
+uint16_t led_gate_duration[SYSTEM_NUM_CHANNELS];
 
-const uint8_t kPulseTrackerBufferSize = 6;
-const uint8_t kTimingErrorCorrectionAmount = 12;
-const uint8_t kAdcPollRatio = 5; // 1:5
-const uint8_t kAdcDeltaThreshold = 8;
-const int8_t kFactors[] = { -8, -7, -6, -5, -4, -3, -2, 0, 2, 3, 4, 5, 6, 7, 8 };
-const int8_t kSwingFactorMin = 50;
-const int8_t kSwingFactorMax = 70;
+uint16_t pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE];
 
-uint16_t pulse_tracker_buffer[kSystemNumChannels][kPulseTrackerBufferSize];
-uint16_t pulse_tracker_period_[kSystemNumChannels];
+bool multiply_is_debouncing[SYSTEM_NUM_CHANNELS];
 
-bool multiply_is_debouncing[kSystemNumChannels];
-bool swing_is_debouncing[kSystemNumChannels];
-int8_t divide_counter[kSystemNumChannels];
-int8_t swing_counter[kSystemNumChannels];
+int8_t divide_counter[SYSTEM_NUM_CHANNELS];
+int8_t swing_counter[SYSTEM_NUM_CHANNELS];
 
-uint16_t last_output_at[kSystemNumChannels];
-uint16_t last_thru_at[kSystemNumChannels];
+uint16_t last_output_at[SYSTEM_NUM_CHANNELS];
+uint8_t exec_state[SYSTEM_NUM_CHANNELS];
+
 uint8_t adc_counter;
+int16_t adc_value[SYSTEM_NUM_CHANNELS];
 
-int8_t factor[kSystemNumChannels];
-int16_t factor_control_value[kSystemNumChannels];
-uint8_t factors_index_ratio;
-uint8_t factors_num_available;
-
-int16_t swing[kSystemNumChannels];
+int16_t factor[SYSTEM_NUM_CHANNELS];
+int16_t swing[SYSTEM_NUM_CHANNELS];
 
 void GateInputsInit() {
 
@@ -107,13 +97,11 @@ void GateInputsInit() {
   in_1.High();
   gate_input_state[0] = false;
 
-  if (kSystemNumGateInputs > 1) {
-    in_2.set_mode(DIGITAL_INPUT);
-    in_2.High();
-    gate_input_state[1] = false;
-  }
+  in_2.set_mode(DIGITAL_INPUT);
+  in_2.High();
+  gate_input_state[1] = false;
 }
-
+/*
 void SwitchesInit() {
   switch_1.set_mode(DIGITAL_INPUT);
   switch_2.set_mode(DIGITAL_INPUT);
@@ -122,7 +110,7 @@ void SwitchesInit() {
 
   switch_state[0] = switch_state[1] = false;
 }
-
+*/
 void GateOutputsInit() {
   out_1_a.set_mode(DIGITAL_OUTPUT);
   out_1_b.set_mode(DIGITAL_OUTPUT);
@@ -147,15 +135,10 @@ void LedsInit() {
 
 void AdcInit() {
   adc.Init();
-  adc.set_num_inputs(ADC_CHANNEL_LAST);
+  adc.set_num_inputs(2);
   Adc::set_reference(ADC_DEFAULT);
   Adc::set_alignment(ADC_LEFT_ALIGNED);
   adc_counter = 1;
-}
-
-void FactorInit() {
-  factors_num_available = sizeof(kFactors)/sizeof(kFactors[0]);
-  factors_index_ratio = 255/(factors_num_available-1);
 }
 
 void SystemInit() {
@@ -163,7 +146,7 @@ void SystemInit() {
   Gpio<PortB, 4>::Low();
 
   GateInputsInit();
-  SwitchesInit();
+  //SwitchesInit();
   GateOutputsInit();
   LedsInit();
   AdcInit();
@@ -171,23 +154,25 @@ void SystemInit() {
   TCCR1A = 0;
   TCCR1B = 5;
 
-  FactorInit();
+  //FactorInit();
 }
 
+/*
 void SystemDisplayReady() {
-  for (uint8_t i; i < kSystemNumChannels; ++i) {
-    led_gate_duration[i] = kLedReadyGateDuration;
+  for (uint8_t i; i < SYSTEM_NUM_CHANNELS; ++i) {
+    led_gate_duration[i] = LED_READY_GATE_DURATION;
     led_state[i] = LED_STATE_GREEN;
   }
-}
+}*/
 
 inline bool GateInputRead(uint8_t channel) {
+  //return !in_1.value();
   return channel == 0 ? !in_1.value() : !in_2.value();
 }
 
-bool SwitchRead(uint8_t channel) {
+/*bool SwitchRead(uint8_t channel) {
   return channel == 0 ? !switch_1.value() : !switch_2.value();
-}
+}*/
 
 inline void GateOutputOn(uint8_t channel) {
   switch (channel) {
@@ -211,42 +196,24 @@ inline void GateOutputOff(uint8_t channel) {
   }
 }
 
-inline void PulseTrackerClear(uint8_t channel) {
-  for (uint8_t i = 0; i < kPulseTrackerBufferSize; ++i) {
-    pulse_tracker_buffer[channel][i] = 0;
-  }
-  //pulse_tracker_period_[channel] = 0;
+inline void PulseTrackerClear() {
+  pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE-2] = 0;
+  pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE-1] = 0;
 }
 
-inline uint16_t PulseTrackerGetElapsed(uint8_t channel) {
-  return TCNT1 - pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1];
+inline uint16_t PulseTrackerGetElapsed() {
+  return TCNT1 - pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 1];
 }
 
 // The period of time between the last two recorded events
-inline uint16_t PulseTrackerGetPeriod(uint8_t channel) {
-  if (pulse_tracker_period_[channel] == 0) {
-    pulse_tracker_period_[channel] = pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] - pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2];
-  }
-  return pulse_tracker_period_[channel];
+inline uint16_t PulseTrackerGetPeriod() {
+  return pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 1] - pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 2];
 }
 
-void PulseTrackerRecord(uint8_t channel) {
-  if (pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] != TCNT1) {
-    pulse_tracker_period_[channel] = 0;
-    // shift
-    for (uint8_t i = kPulseTrackerBufferSize-1; i > 0; i--) {
-      if (pulse_tracker_buffer[channel][i] > 0) {
-        pulse_tracker_buffer[channel][i-1] = pulse_tracker_buffer[channel][i];
-      }
-    }
-    // record
-    pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] = TCNT1;
-  }
-}
-
-// Is the factor control setting in bypass mode? (zero)
-inline bool BypassIsEnabled(uint8_t channel) {
-  return factor[channel] == 0;
+void PulseTrackerRecord() {
+  // shift
+  pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 2] = pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 1];
+  pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 1] = TCNT1;
 }
 
 // Is the factor control setting such that we're in multiplier mode?
@@ -256,20 +223,29 @@ inline bool MultiplyIsEnabled(uint8_t channel) {
 
 // Is the pulse tracker populated with enough events to perform multiply?
 inline bool MultiplyIsPossible(uint8_t channel) {
-  return pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 1] > 0 &&
-    pulse_tracker_buffer[channel][kPulseTrackerBufferSize - 2] > 0;
+  return pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 1] > 0 &&
+    pulse_tracker_buffer[PULSE_TRACKER_BUFFER_SIZE - 2] > 0;
 }
 
 // The time interval between multiplied events
 // eg if clock is comes in at 100 and 200, and the clock multiply factor is 2,
 // the result will be 50
 inline uint16_t MultiplyInterval(uint8_t channel) {
-  return PulseTrackerGetPeriod(channel) / -factor[channel];
+  return PulseTrackerGetPeriod() / -factor[channel];
 }
 
 inline bool MultiplyShouldExec(uint8_t channel, uint16_t elapsed) {
   uint16_t interval = MultiplyInterval(channel);
-  return (!multiply_is_debouncing[channel] && (elapsed % interval <= kTimingErrorCorrectionAmount));
+  if (elapsed % interval <= FUNCTION_TIMING_ERROR_CORRECTION_AMOUNT) {
+    if (!multiply_is_debouncing[channel]) {
+      return true;
+    }
+    // debounce window/return false
+  } else {
+    // debounce is finished
+    multiply_is_debouncing[channel] = false;
+  }
+  return false;
 }
 
 // Is the factor control setting such that we're in divider mode?
@@ -278,19 +254,19 @@ inline bool DivideIsEnabled(uint8_t channel) {
 }
 
 inline bool DivideShouldExec(uint8_t channel) {
-  return divide_counter[channel] >= (factor[channel] - 1);
+  return divide_counter[channel] <= 0;
 }
 
-inline void DivideReset(uint8_t channel) {
-  divide_counter[channel] = 0;
-}
-
-inline int8_t FactorGet(uint8_t channel) {
-  uint16_t factor_index = factors_num_available - (factor_control_value[channel]/factors_index_ratio);
-  // correcting for weird adc value
-  //factor_index = (factor_index == 0) ? factors_num_available - 1 : factor_index - 1;
-  //
-  return kFactors[factor_index];
+inline int16_t FactorGet(uint8_t channel) {
+  int16_t factor_index = (adc_value[channel] / (ADC_MAX_VALUE / (FACTORER_NUM_FACTORS - 1))) - FACTORER_BYPASS_INDEX;
+  // offset result so that there's no -1 or 1 factor, but values are still evenly spaced
+  if (factor_index == 0) {
+    return 0;
+  } else if (factor_index < 0) {
+    return --factor_index;
+  } else {
+    return ++factor_index;
+  }
 }
 
 inline void LedOff(uint8_t channel) {
@@ -327,7 +303,7 @@ inline void LedRed(uint8_t channel) {
 }
 
 inline void AdcScan() {
-  if (adc_counter == (kAdcPollRatio-1)) {
+  if (adc_counter == (ADC_POLL_RATIO-1)) {
     adc.Scan();
     adc_counter = 0;
   } else {
@@ -344,14 +320,19 @@ bool AdcHasNewValue(uint8_t channel) {
   if (adc_counter == 0) {
     int16_t value = AdcReadValue(channel);
     // compare to stored factor control value
-    int16_t delta = value - factor_control_value[channel];
+    int16_t delta = value - adc_value[channel];
     // abs
     if (delta < 0) {
       delta = -delta;
     }
-    if (delta > kAdcDeltaThreshold) {
+    if (delta > ADC_DELTA_THRESHOLD) {
       // store factor control value
-      factor_control_value[channel] = 252 - value;
+      adc_value[channel] = ADC_MAX_VALUE - value;
+      if (adc_value[channel] < 0) {
+        adc_value[channel] = 0;
+      } else if (adc_value[channel] > ADC_MAX_VALUE) {
+        adc_value[channel] = ADC_MAX_VALUE;
+      }
       return true;
     }
   }
@@ -359,32 +340,31 @@ bool AdcHasNewValue(uint8_t channel) {
 }
 
 inline bool ClockIsOverflow() {
-  for (uint8_t i = 0; i < kSystemNumChannels; ++i) {
-    if (last_output_at[i] > TCNT1) {
-      return true;
-    }
-  }
-  return false;
+  return (last_output_at[0] > TCNT1 || last_output_at[1] > TCNT1);
 }
 
 inline void ClockHandleOverflow() {
-  for (uint8_t i = 0; i < kSystemNumChannels; ++i) {
-    PulseTrackerClear(i);
+  PulseTrackerClear();
+  for (uint8_t i = 0; i < SYSTEM_NUM_CHANNELS; ++i) {
     last_output_at[i] = 0;
   }
 }
 
 inline void LedExecThru(uint8_t channel) {
-  led_gate_duration[channel] = kLedThruGateDuration;
-  led_state[channel] = LED_STATE_GREEN;
+  led_gate_duration[channel] = LED_THRU_GATE_DURATION;
+  led_state[channel] = 1;
 }
 
 inline void LedExecFactored(uint8_t channel) {
-  led_gate_duration[channel] = kLedFactoredGateDuration;
-  led_state[channel] = LED_STATE_RED;
+  led_gate_duration[channel] = LED_FACTORED_GATE_DURATION;
+  led_state[channel] = 2;
 }
 
-inline void LedsUpdate(uint8_t channel) {
+inline int8_t SwingGet(uint8_t channel) {
+  return (adc_value[channel] / (ADC_MAX_VALUE / (SWING_FACTOR_MAX - SWING_FACTOR_MIN))) + SWING_FACTOR_MIN;
+}
+
+inline void LedUpdate(uint8_t channel) {
   //
   if (led_gate_duration[channel]) {
     --led_gate_duration[channel];
@@ -395,12 +375,12 @@ inline void LedsUpdate(uint8_t channel) {
 
   // Update Leds
   switch (led_state[channel]) {
-    case LED_STATE_OFF: LedOff(channel);
-                        break;
-    case LED_STATE_GREEN: LedGreen(channel);
-                          break;
-    case LED_STATE_RED: LedRed(channel);
-                        break;
+    case 0: LedOff(channel);
+            break;
+    case 1: LedGreen(channel);
+            break;
+    case 2: LedRed(channel);
+            break;
   }
 }
 
@@ -415,44 +395,51 @@ inline bool GateInputIsRisingEdge(uint8_t channel) {
 inline void MultiplyExec(uint8_t channel) {
   if (MultiplyIsEnabled(channel) &&
         MultiplyIsPossible(channel) &&
-        MultiplyShouldExec(channel, PulseTrackerGetElapsed(channel))) {
+        MultiplyShouldExec(channel, PulseTrackerGetElapsed())) {
     last_output_at[channel] = TCNT1;
+    exec_state[channel] = 2;
     multiply_is_debouncing[channel] = true;
   }
 }
 
+inline void DivideReset(uint8_t channel) {
+  divide_counter[channel] = 0;
+}
+
+inline bool DivideShouldReset(uint8_t channel) {
+  return divide_counter[channel] >= (factor[channel] - 1);
+}
+
 void FactorerHandleInputGateRisingEdge(uint8_t channel) {
+  //
   if (DivideIsEnabled(channel)) {
     if (DivideShouldExec(channel)) {
-      DivideReset(channel);
       last_output_at[channel] = TCNT1;
+      exec_state[channel] = 2; // divide converts thru to exec on every division
+    }
+    // deal with counter
+    if (DivideShouldReset(channel)) {
+      DivideReset(channel);
     } else {
       ++divide_counter[channel];
     }
-  } else { // thru
-    DivideReset(channel);
+  } else {
+    // all thru
+    exec_state[channel] = 1; // mult always acknowledges thru
     last_output_at[channel] = TCNT1;
-    last_thru_at[channel] = TCNT1;
-    multiply_is_debouncing[channel] = false;
   }
 }
 
-inline int8_t SwingGet(uint8_t channel) {
-  return ((factor_control_value[channel] * (kSwingFactorMax - kSwingFactorMin)) / 255) + kSwingFactorMin;
-}
-
 inline uint16_t SwingInterval(uint8_t channel) {
-  uint16_t period = PulseTrackerGetPeriod(channel);
-  uint16_t ratio = 1000 / swing[channel];
-  uint16_t scaled = (10 * (period * 2)) / ratio;
-  return scaled - period;
+  uint16_t period = PulseTrackerGetPeriod();
+  return ((10 * (period * 2)) / (1000 / swing[channel])) - period;
 }
 
 inline bool SwingShouldExec(uint8_t channel, uint16_t elapsed) {
-  if (swing_counter[channel] == 2 && swing[channel] != 50) {
+  if (swing_counter[channel] >= 2 && swing[channel] > SWING_FACTOR_MIN) {
     uint16_t interval = SwingInterval(channel);
     return (elapsed >= interval &&
-      elapsed <= interval + kTimingErrorCorrectionAmount);
+      elapsed <= interval + FUNCTION_TIMING_ERROR_CORRECTION_AMOUNT);
   } else {
     // thru
     return false;
@@ -463,19 +450,32 @@ inline void SwingReset(uint8_t channel) {
   swing_counter[channel] = 0;
 }
 
+inline void SwingExecThru(uint8_t channel) {
+  exec_state[channel] = 1;
+  last_output_at[channel] = TCNT1;
+}
+
+inline void SwingStrike(uint8_t channel) {
+  exec_state[channel] = 2;
+  last_output_at[channel] = TCNT1;
+}
+
 void SwingHandleInputGateRisingEdge(uint8_t channel) {
   switch (swing_counter[channel]) {
     case 0: // thru beat
-            last_thru_at[channel] = TCNT1;
-            last_output_at[channel] = TCNT1;
-            ++swing_counter[channel];
+            SwingExecThru(channel);
+            swing_counter[channel] = 1;
             break;
     case 1: // skipped thru beat
             // unless lowest setting, no swing - should do thru
-            if (swing[channel] <= kSwingFactorMin) {
-              last_output_at[channel] = TCNT1;
-            } // else rest
-            ++swing_counter[channel];
+            if (swing[channel] <= SWING_FACTOR_MIN) {
+              SwingStrike(channel);
+              SwingReset(channel);
+            } else {
+              // rest
+              exec_state[channel] = 0;
+              swing_counter[channel] = 2;
+            }
             break;
     default: SwingReset(channel); // something is wrong if we're here so reset
              break;
@@ -483,9 +483,9 @@ void SwingHandleInputGateRisingEdge(uint8_t channel) {
 }
 
 inline void SwingExec(uint8_t channel) {
-  if (SwingShouldExec(channel, PulseTrackerGetElapsed(channel))) {
-    last_output_at[channel] = TCNT1;
-    SwingReset(channel);
+  if (SwingShouldExec(channel, PulseTrackerGetElapsed())) {
+    SwingStrike(channel);
+    SwingReset(channel); // reset
   }
 }
 
@@ -498,7 +498,7 @@ inline void SystemHandleNewAdcValue(uint8_t channel) {
   }
 }
 
-inline void SystemExec(uint8_t channel) {
+inline void FunctionExec(uint8_t channel) {
   switch(function_table_[channel]) {
     case CHANNEL_FUNCTION_FACTORER: MultiplyExec(channel);
                                     break;
@@ -507,18 +507,25 @@ inline void SystemExec(uint8_t channel) {
   }
 
   // Do stuff
-  if (last_output_at[channel] == TCNT1) {
+  if (exec_state[channel] > 0) {
     GateOutputOn(channel);
-    last_thru_at[channel] == TCNT1 ? LedExecThru(channel) : LedExecFactored(channel);
+    (exec_state[channel] < 2) ? LedExecThru(channel) : LedExecFactored(channel);
   } else {
     GateOutputOff(channel);
+  }
+  exec_state[channel] = 0; // clean up
+}
+
+inline void FunctionReset(uint8_t channel) {
+  switch(function_table_[channel]) {
+    case CHANNEL_FUNCTION_FACTORER: DivideReset(channel);
+                                    break;
+    case CHANNEL_FUNCTION_SWING: SwingReset(channel);
+                                 break;
   }
 }
 
 inline void FunctionHandleInputGateRisingEdge(uint8_t channel) {
-  // Pulse tracker is always recording. this should help smooth transitions
-  // between functions
-
   switch(function_table_[channel]) {
     case CHANNEL_FUNCTION_FACTORER: FactorerHandleInputGateRisingEdge(channel);
                                     break;
@@ -528,47 +535,60 @@ inline void FunctionHandleInputGateRisingEdge(uint8_t channel) {
 }
 
 inline void ChannelExec(uint8_t channel) {
+  // do stuff
+  FunctionExec(channel);
+  LedUpdate(channel);
+}
+
+inline void SystemHandleInput(uint8_t channel, bool is_trig, bool is_reset) {
+  // handle pot/cv in
   if (AdcHasNewValue(channel)) {
     SystemHandleNewAdcValue(channel);
   }
-
-  SystemExec(channel);
-  LedsUpdate(channel);
+  // handle clock/trig/gate input
+  if (is_trig) {
+    FunctionHandleInputGateRisingEdge(channel);
+  }
+  // handle reset input
+  if (is_reset) {
+    FunctionReset(channel);
+  }
 }
 
 inline void Loop() {
-
-  AdcScan();
 
   if (ClockIsOverflow()) {
     ClockHandleOverflow();
   }
 
-  bool common_gate_input_is_rising = false;
+  // scan pot/cv in
+  AdcScan();
 
-  for (uint8_t i = 0; i < kSystemNumChannels; ++i) {
-    if (i < kSystemNumGateInputs) {
-      if (GateInputIsRisingEdge(i)) {
-        PulseTrackerRecord(i);
-        FunctionHandleInputGateRisingEdge(i);
-        common_gate_input_is_rising = true;
-      }
-    } else if (common_gate_input_is_rising) {
-      FunctionHandleInputGateRisingEdge(i);
-    }
+  // scan clock/trig/gate input
+  bool is_trig = false;
+
+  if (GateInputIsRisingEdge(GATE_INPUT_TRIG_INDEX)) {
+    // Pulse tracker is always recording. this should help smooth transitions
+    // between functions even though divide doesn't use it
+    PulseTrackerRecord();
+    is_trig = true;
+  }
+
+  // scan reset input
+  bool is_reset = GateInputIsRisingEdge(GATE_INPUT_RESET_INDEX);
+
+  // do stuff
+  for (uint8_t i = 0; i < SYSTEM_NUM_CHANNELS; ++i) {
+    SystemHandleInput(i, is_trig, is_reset);
     ChannelExec(i);
   }
 }
 
 int main(void) {
-
   ResetWatchdog();
   SystemInit();
-  SystemDisplayReady();
 
   while (1) {
     Loop();
   }
-
-  return 0;
 }

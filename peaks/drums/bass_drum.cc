@@ -66,8 +66,9 @@ void BassDrum::Init() {
   lp_state_ = 0;
 }
 
-int16_t BassDrum::ProcessSingleSample(uint8_t control) {
-  if (control & CONTROL_GATE_RISING) {
+int16_t BassDrum::ProcessSingleSample(uint8_t control1, uint8_t control2) {
+  int32_t lp_coefficient = lp_coefficient_;
+  if (control1 & CONTROL_GATE_RISING || control2 & CONTROL_GATE_RISING) {
     // randomise parameters
     // frequency
     bool freq_up = (stmlib::Random::GetWord() > 2147483647) ? true : false ;
@@ -95,6 +96,13 @@ int16_t BassDrum::ProcessSingleSample(uint8_t control) {
     // now random excitation level and decay
     int32_t hit_random_offset = (stmlib::Random::GetSample() * hit_randomness_) >> 16;
     int32_t randomised_decay_ = base_decay_ + (hit_random_offset >> 2);
+
+    // accent gate
+    if (control2 & CONTROL_GATE_RISING) {
+      lp_coefficient *= 1.4;
+      randomised_decay_ *= 1.4;
+    }
+
     // constrain randomised decay
     if (randomised_decay_ < 0) {
       randomised_decay_ = 0;
@@ -114,7 +122,7 @@ int16_t BassDrum::ProcessSingleSample(uint8_t control) {
   resonator_.set_frequency(frequency_ + (attack_fm_.done() ? 0 : 17 << 7));
 
   int32_t resonator_output = (excitation >> 4) + resonator_.Process(excitation);
-  lp_state_ += (resonator_output - lp_state_) * lp_coefficient_ >> 15;
+  lp_state_ += (resonator_output - lp_state_) * lp_coefficient >> 15;
   // int32_t output = lp_state_ ;
   int32_t output = (lp_state_ * (16383 + (randomised_decay_ >> 1) + (randomised_decay_ >> 2) )) >> 16;
   CLIP(output);

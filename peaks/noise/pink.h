@@ -37,7 +37,7 @@ class PinkNoise {
   ~PinkNoise() { }
 
   void Init();
-  int16_t ProcessSingleSample(uint8_t control) IN_RAM;
+  int16_t ProcessSingleSample(uint8_t control1, uint8_t control2) IN_RAM;
   void Configure(uint16_t* parameter, ControlMode control_mode) { }
 
  private:

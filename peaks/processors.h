@@ -66,8 +66,8 @@ enum ProcessorFunction {
   void ClassName ## Init() { \
     variable.Init(); \
   } \
-  int16_t ClassName ## ProcessSingleSample(uint8_t control) { \
-    return variable.ProcessSingleSample(control); \
+  int16_t ClassName ## ProcessSingleSample(uint8_t control1, uint8_t control2) { \
+    return variable.ProcessSingleSample(control1, control2); \
   } \
   void ClassName ## Configure(uint16_t* p, ControlMode control_mode) { \
     variable.Configure(p, control_mode); \
@@ -83,7 +83,7 @@ class Processors {
   void Init(uint8_t index);
 
   typedef void (Processors::*InitFn)();
-  typedef int16_t (Processors::*ProcessSingleSampleFn)(uint8_t);
+  typedef int16_t (Processors::*ProcessSingleSampleFn)(uint8_t, uint8_t);
   typedef void (Processors::*FillBufferFn)();
   typedef void (Processors::*ConfigureFn)(uint16_t*, ControlMode);
 
@@ -110,23 +110,23 @@ class Processors {
 
   inline void set_function(ProcessorFunction function) {
     function_ = function;
-    //lfo_.set_sync(function == PROCESSOR_FUNCTION_TAP_LFO);
     callbacks_ = callbacks_table_[function];
-    //if (function != PROCESSOR_FUNCTION_TAP_LFO) {
-    //  (this->*callbacks_.init_fn)();
-    //}
     Configure();
+  }
+
+  inline ProcessSingleSampleFn get_process_single_sample() {
+    return callbacks_.process_single_sample;
+  }
+
+  inline int16_t ProcessBuffer(uint8_t control) {
+    input_buffer_.Overwrite(control);
+    return output_buffer_.ImmediateRead();
   }
 
   inline ProcessorFunction function() const { return function_; }
 
-  inline int16_t Process(uint8_t control) {
-    if (callbacks_.process_single_sample) {
-      return (this->*callbacks_.process_single_sample)(control);
-    } else {
-      input_buffer_.Overwrite(control);
-      return output_buffer_.ImmediateRead();
-    }
+  inline int16_t Process(uint8_t control1, uint8_t control2) {
+    return (this->*callbacks_.process_single_sample)(control1, control2);
   }
 
   inline bool Buffer() {

@@ -21,7 +21,7 @@ void HHNoise::Init() {
   noise_.set_mode(SVF_MODE_BP);
 }
 
-int16_t HHNoise::ProcessSingleSample(uint8_t control) {
+int16_t HHNoise::ProcessSingleSample(uint8_t control1, uint8_t control2) {
   phase_[0] += 48318382;
   phase_[1] += 71582788;
   phase_[2] += 37044092;

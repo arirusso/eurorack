@@ -8,10 +8,10 @@
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,7 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
-// 
+//
 // See http://creativecommons.org/licenses/MIT/ for more information.
 
 #include <stm32f10x_conf.h>
@@ -47,7 +47,7 @@ System sys;
 Ui ui;
 
 extern "C" {
-  
+
 void HardFault_Handler(void) { while (1); }
 void MemManage_Handler(void) { while (1); }
 void BusFault_Handler(void) { while (1); }
@@ -72,7 +72,7 @@ void TIM1_UP_IRQHandler(void) {
   static int16_t cv_1;
   static int16_t cv_2;
   static uint8_t control;
-  
+
   // DAC refresh at 48kHz
   if (TIM_GetITStatus(TIM1, TIM_IT_Update) == RESET) {
     return;
@@ -82,11 +82,19 @@ void TIM1_UP_IRQHandler(void) {
   if (dac.ready()) {
     dac.Write(32767 - cv_1, 32767 - cv_2);
     ui.set_leds_brightness(cv_1, cv_2);
-    
+
     control = gate_input.Read() | ui.ReadPanelGateState();
-    cv_1 = processors[0].Process(control);
+    if (processors[0].get_process_single_sample()) {
+      cv_1 = processors[0].Process(control, control >> 4);
+    } else {
+      cv_1 = processors[0].ProcessBuffer(control);
+    }
   } else {
-    cv_2 = processors[1].Process(control >> 4);
+    if (processors[1].get_process_single_sample()) {
+      cv_2 = processors[1].Process(control, control >> 4);
+    } else {
+      cv_2 = processors[1].ProcessBuffer(control >> 4);
+    }
   }
   dac.Update();
 }
@@ -95,15 +103,15 @@ void TIM1_UP_IRQHandler(void) {
 
 void Init() {
   sys.Init(F_CPU / 96000 - 1, true);
-  
+
   system_clock.Init();
   gate_input.Init();
   dac.Init();
-  
+
   processors[0].Init(0);
   processors[1].Init(1);
   ui.Init();
-  
+
   sys.StartTimers();
 }
 
@@ -112,7 +120,7 @@ int main(void) {
   while (1) {
     // Faster rate than 1kHz, but no need to be faster than the buffer
     // fill rate.
-    ui.PollPots(); 
+    ui.PollPots();
     ui.DoEvents();
     processors[0].Buffer();
     processors[1].Buffer();

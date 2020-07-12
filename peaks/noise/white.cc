@@ -15,7 +15,7 @@ using namespace stmlib;
 
 void WhiteNoise::Init() { }
 
-int16_t WhiteNoise::ProcessSingleSample(uint8_t control) {
+int16_t WhiteNoise::ProcessSingleSample(uint8_t control1, uint8_t control2) {
 
   int16_t noise = Random::GetSample();
 

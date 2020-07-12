@@ -20,7 +20,7 @@ void PinkNoise::Init() {
   }
 }
 
-int16_t PinkNoise::ProcessSingleSample(uint8_t control) {
+int16_t PinkNoise::ProcessSingleSample(uint8_t control1, uint8_t control2) {
   int16_t white = Random::GetSample();
   uint8_t i;
   for (i = 0; i < 7; i += 1) {

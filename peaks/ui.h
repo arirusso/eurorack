@@ -89,6 +89,10 @@ class Ui {
     brightness_[1] = channel_2;
   }
 
+  void set_split_led(bool is_on) {
+    leds_.set_twin_mode(is_on);
+  }
+
   inline uint8_t ReadPanelGateState() {
     uint8_t state = panel_gate_control_[0] ? INPUT_1_GATE : 0;
     state |= panel_gate_control_[1] ? INPUT_2_GATE : 0;

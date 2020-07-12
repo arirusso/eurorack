@@ -114,18 +114,6 @@ void Ui::SaveState() {
 }
 
 inline void Ui::RefreshLeds() {
-  uint8_t flash = (system_clock.milliseconds() >> 7) & 7;
-  switch (edit_mode_) {
-    case EDIT_MODE_FIRST:
-      leds_.set_twin_mode(flash == 1);
-      break;
-    case EDIT_MODE_SECOND:
-      leds_.set_twin_mode(flash == 1 || flash == 3);
-      break;
-    default:
-      leds_.set_twin_mode(edit_mode_ & 1);
-      break;
-  }
   if ((system_clock.milliseconds() & 256) &&
       function() >= FUNCTION_FIRST_ALTERNATE_FUNCTION) {
     leds_.set_function(4);

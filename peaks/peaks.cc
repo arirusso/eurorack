@@ -84,6 +84,7 @@ void TIM1_UP_IRQHandler(void) {
     ui.set_leds_brightness(cv_1, cv_2);
 
     control = gate_input.Read() | ui.ReadPanelGateState();
+    ui.set_split_led(control >> 4);
     if (processors[0].get_process_single_sample()) {
       cv_1 = processors[0].Process(control, control >> 4);
     } else {

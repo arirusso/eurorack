@@ -43,6 +43,7 @@ PACKAGES       = peaks \
 		peaks/drivers \
 		peaks/drums \
 		peaks/modulations \
+		peaks/noise \
 		peaks/number_station \
 		peaks/pulse_processor \
 		stmlib/utils \

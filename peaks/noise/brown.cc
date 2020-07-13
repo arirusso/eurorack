@@ -20,7 +20,7 @@ int16_t BrownNoise::ProcessSingleSample(uint8_t control1, uint8_t control2) {
 	int16_t white = Random::GetSample();
 	brown = (lastout_ + (white / 50)) * 0.95;
 	lastout_ = brown;
-	return brown; // (roughly) compensate for gain
+	return brown;
 }
 
 }  // namespace peaks

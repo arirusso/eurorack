@@ -52,7 +52,7 @@ const Processors::ProcessorCallbacks
 Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_UNBUFFERED_PROCESSOR(WhiteNoise)
   REGISTER_UNBUFFERED_PROCESSOR(PinkNoise)
-  REGISTER_UNBUFFERED_PROCESSOR(BrownNoise)
+  REGISTER_UNBUFFERED_PROCESSOR(SnareNoise)
   REGISTER_UNBUFFERED_PROCESSOR(HHNoise)
   REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
 };
@@ -71,7 +71,7 @@ void Processors::Init(uint8_t index) {
   }
 
   bass_drum_.Init();
-  brown_noise_.Init();
+  snare_noise_.Init();
   hh_noise_.Init();
   pink_noise_.Init();
   white_noise_.Init();

@@ -29,7 +29,7 @@ static const int32_t kWhiteFilterFactor[] = {
 
 static const uint16_t kFilterSumFactor = 186;
 static const uint16_t kFilterIterateFactor = 862;
-static const uint8_t kGainFactor = 9;
+static const uint8_t kGainFactor = 40;
 
 class PinkNoise {
  public:
@@ -42,11 +42,11 @@ class PinkNoise {
 
  private:
   static int16_t sum_array(int16_t a[], uint8_t num_elements) {
-    uint8_t i, sum=0;
-    for (i=0; i<num_elements; i++) {
-	    sum = sum + a[i];
+    uint8_t sum=0;
+    for (uint8_t i = 0; i < num_elements; i++) {
+	    sum += a[i];
     }
-    return(sum);
+    return sum;
   }
   int16_t b_[7];
 

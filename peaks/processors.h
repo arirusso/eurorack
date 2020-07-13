@@ -34,6 +34,7 @@
 #include <algorithm>
 
 #include "peaks/drums/bass_drum.h"
+#include "peaks/noise/brown.h"
 #include "peaks/noise/hh.h"
 #include "peaks/noise/pink.h"
 #include "peaks/noise/white.h"
@@ -45,6 +46,7 @@ namespace peaks {
 enum ProcessorFunction {
   PROCESSOR_FUNCTION_WHITE_NOISE,
   PROCESSOR_FUNCTION_PINK_NOISE,
+  PROCESSOR_FUNCTION_BROWN_NOISE,
   PROCESSOR_FUNCTION_HH_NOISE,
   PROCESSOR_FUNCTION_BASS_DRUM,
   PROCESSOR_FUNCTION_LAST
@@ -160,6 +162,7 @@ class Processors {
   DECLARE_UNBUFFERED_PROCESSOR(WhiteNoise, white_noise_);
   DECLARE_UNBUFFERED_PROCESSOR(PinkNoise, pink_noise_);
   DECLARE_UNBUFFERED_PROCESSOR(HHNoise, hh_noise_);
+  DECLARE_UNBUFFERED_PROCESSOR(BrownNoise, brown_noise_);
   DECLARE_UNBUFFERED_PROCESSOR(BassDrum, bass_drum_);
 
   DISALLOW_COPY_AND_ASSIGN(Processors);

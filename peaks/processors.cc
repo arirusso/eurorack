@@ -55,6 +55,7 @@ Processors::callbacks_table_[PROCESSOR_FUNCTION_LAST] = {
   REGISTER_UNBUFFERED_PROCESSOR(SnareNoise)
   REGISTER_UNBUFFERED_PROCESSOR(HHNoise)
   REGISTER_UNBUFFERED_PROCESSOR(BassDrum)
+  REGISTER_BUFFERED_PROCESSOR(FmDrum)
 };
 
 void Processors::Init(uint8_t index) {
@@ -71,6 +72,7 @@ void Processors::Init(uint8_t index) {
   }
 
   bass_drum_.Init();
+  fm_drum_.Init();
   snare_noise_.Init();
   hh_noise_.Init();
   pink_noise_.Init();

@@ -34,6 +34,7 @@
 #include <algorithm>
 
 #include "peaks/drums/bass_drum.h"
+#include "peaks/drums/fm_drum.h"
 #include "peaks/noise/snare.h"
 #include "peaks/noise/hh.h"
 #include "peaks/noise/pink.h"
@@ -49,6 +50,7 @@ enum ProcessorFunction {
   PROCESSOR_FUNCTION_SNARE_NOISE,
   PROCESSOR_FUNCTION_HH_NOISE,
   PROCESSOR_FUNCTION_BASS_DRUM,
+  PROCESSOR_FUNCTION_FM_DRUM,
   PROCESSOR_FUNCTION_LAST
 };
 
@@ -164,6 +166,7 @@ class Processors {
   DECLARE_UNBUFFERED_PROCESSOR(HHNoise, hh_noise_);
   DECLARE_UNBUFFERED_PROCESSOR(SnareNoise, snare_noise_);
   DECLARE_UNBUFFERED_PROCESSOR(BassDrum, bass_drum_);
+  DECLARE_BUFFERED_PROCESSOR(FmDrum, fm_drum_);
 
   DISALLOW_COPY_AND_ASSIGN(Processors);
 };

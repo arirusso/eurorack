@@ -42,11 +42,16 @@ const uint16_t kAdcThresholdLocked = 1 << (16 - 8);  // 8 bits
 const int32_t kLongPressDuration = 600;
 
 /* static */
-const ProcessorFunction Ui::function_table_[FUNCTION_LAST][2] = {
+const ProcessorFunction Ui::function_table_[8][2] = {
   { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_WHITE_NOISE },
   { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_PINK_NOISE },
   { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_SNARE_NOISE },
   { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_HH_NOISE },
+
+  { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_WHITE_NOISE },
+  { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_PINK_NOISE },
+  { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_SNARE_NOISE },
+  { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_HH_NOISE },
 };
 
 Storage<0x8020000, 16> storage;
@@ -65,7 +70,7 @@ void Ui::Init() {
   if (!storage.ParsimoniousLoad(&settings_, &version_token_)) {
     edit_mode_ = EDIT_MODE_TWIN;
     function_[0] = FUNCTION_DRUM_GENERATOR;
-    function_[1] = FUNCTION_WHITE_NOISE;
+    function_[1] = FUNCTION_DRUM_GENERATOR;
     settings_.snap_mode = false;
   } else {
     edit_mode_ = static_cast<EditMode>(settings_.edit_mode);
@@ -114,6 +119,18 @@ void Ui::SaveState() {
 }
 
 inline void Ui::RefreshLeds() {
+  uint8_t flash = (system_clock.milliseconds() >> 7) & 7;
+  switch (edit_mode_) {
+    case EDIT_MODE_FIRST:
+      leds_.set_twin_mode(flash == 1);
+      break;
+    case EDIT_MODE_SECOND:
+      leds_.set_twin_mode(flash == 1 || flash == 3);
+      break;
+    default:
+      leds_.set_twin_mode(edit_mode_ & 1);
+      break;
+  }
   if ((system_clock.milliseconds() & 256) &&
       function() >= FUNCTION_FIRST_ALTERNATE_FUNCTION) {
     leds_.set_function(4);
@@ -124,7 +141,8 @@ inline void Ui::RefreshLeds() {
   uint8_t b[2];
   for (uint8_t i = 0; i < 2; ++i) {
     switch (function_[i]) {
-      case FUNCTION_DRUM_GENERATOR:
+      case FUNCTION_LAST_PAGE_ONE:
+      case FUNCTION_LAST_PAGE_TWO:
         b[i] = abs(brightness_[i]) >> 8;
         b[i] = b[i] > 255 ? 255 : b[i];
         break;

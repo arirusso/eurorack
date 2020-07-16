@@ -63,8 +63,13 @@ enum Function {
   FUNCTION_SNARE_NOISE,
   FUNCTION_HH_NOISE,
   FUNCTION_DRUM_GENERATOR,
+  FUNCTION_FM_DRUM_GENERATOR,
+  FUNCTION_PLACEHOLDER1,
+  FUNCTION_PLACEHOLDER2,
   FUNCTION_LAST,
-  FUNCTION_FIRST_ALTERNATE_FUNCTION = FUNCTION_DRUM_GENERATOR
+  FUNCTION_FIRST_ALTERNATE_FUNCTION = 4,
+  FUNCTION_LAST_PAGE_ONE = 3,
+  FUNCTION_LAST_PAGE_TWO = 7
 };
 
 struct Settings {
@@ -131,7 +136,7 @@ class Ui {
   uint16_t adc_threshold_[kNumAdcChannels];
   uint32_t press_time_[kNumSwitches];
   bool panel_gate_control_[2];
-  static const ProcessorFunction function_table_[FUNCTION_LAST][2];
+  static const ProcessorFunction function_table_[8][2];
 
   stmlib::EventQueue<32> queue_;
 

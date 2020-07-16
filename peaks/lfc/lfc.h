@@ -24,65 +24,60 @@
 //
 // -----------------------------------------------------------------------------
 //
-// Exponential decay excitation.
+// Mini sequencer.
 
-#ifndef PEAKS_DRUMS_EXCITATION_H_
-#define PEAKS_DRUMS_EXCITATION_H_
+#ifndef PEAKS_LOW_FREQUENCY_COUNTER_H_
+#define PEAKS_LOW_FREQUENCY_COUNTER_H_
 
 #include "stmlib/stmlib.h"
 
+#include <algorithm>
+
+#include "peaks/gate_processor.h"
+
 namespace peaks {
 
-class Excitation {
+class LowFrequencyCounter {
  public:
-  Excitation() { }
-  ~Excitation() { }
+  LowFrequencyCounter() { }
+  ~LowFrequencyCounter() { }
 
   void Init() {
-    delay_ = 0;
-    decay_ = 4093;
     counter_ = 0;
-    state_ = 0;
   }
 
-  void set_delay(uint16_t delay) {
-    delay_ = delay;
+  inline void set_range(uint8_t value) {
+    range_ = value;
   }
 
-  void set_decay(uint16_t decay) {
-    decay_ = decay;
+  void Configure(uint16_t* parameter, ControlMode control_mode) {
+    set_range(parameter[0] - 32768);
   }
 
-  void Trigger(int32_t level) {
-    level_ = level;
-    counter_ = delay_ + 1;
-  }
-
-  bool done() {
-    return counter_ == 0;
-  }
-
-  inline int32_t Process() {
-    state_ = (state_ * decay_ >> 12);
-    if (counter_ > 0) {
-      --counter_;
-      if (counter_ == 0) {
-        state_ += level_ < 0 ? -level_ : level_;
+  inline int16_t ProcessSingleSample(uint8_t control) {
+    counter_++;
+    if (control & CONTROL_GATE_RISING) {
+      output_ += 100;
+      if (output_ >= 32768) {
+        output_ = 32768;
+      }
+    } else {
+      output_ -= 100; // * range
+      if (output_ <= 0) {
+        output_ = 0;
       }
     }
-    return level_ < 0 ? -state_ : state_;
+    return output_;
   }
 
  private:
-  uint32_t delay_;
-  uint32_t decay_;
-  int32_t counter_;
-  int32_t state_;
-  int32_t level_;
+  uint8_t range_;
+  int16_t counter_;
+  int16_t output_;
 
-  DISALLOW_COPY_AND_ASSIGN(Excitation);
+  DISALLOW_COPY_AND_ASSIGN(LowFrequencyCounter);
 };
 
 }  // namespace peaks
 
-#endif  // PEAKS_DRUMS_EXCITATION_H_
+#endif  // PEAKS_LOW_FREQUENCY_COUNTER_H_

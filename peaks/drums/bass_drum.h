@@ -48,25 +48,15 @@ class BassDrum {
   int16_t ProcessSingleSample(uint8_t control1, uint8_t control2) IN_RAM;
 
   void Configure(uint16_t* parameter, ControlMode control_mode) {
-    if (control_mode == CONTROL_MODE_HALF) {
-      set_frequency(0);
-      base_frequency_ = 0;
-      last_frequency_ = base_frequency_;
-      set_punch(40000);
-      set_tone(8192 + (parameter[0] >> 1));
-      set_decay(parameter[1]);
-      base_decay_ = parameter[1] ;
-    } else {
-      set_frequency(0);
-      base_frequency_ = 0;
-      last_frequency_ = base_frequency_;
-      set_punch(40000);
-      set_tone(8192 + (parameter[0] >> 1));
-      set_decay(parameter[1]);
-      base_decay_ = parameter[1] ;
-      set_frequency_randomness(parameter[2]);
-      set_hit_randomness(parameter[3]);
-    }
+    set_frequency(0);
+    base_frequency_ = 0;
+    last_frequency_ = base_frequency_;
+    set_punch(40000);
+    set_tone(8192 + (parameter[0] >> 1));
+    set_decay(parameter[1]);
+    base_decay_ = parameter[1] ;
+    set_frequency_randomness(parameter[2]);
+    set_hit_randomness(parameter[3]);
   }
 
   void set_frequency(int16_t frequency) {

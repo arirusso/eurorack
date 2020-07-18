@@ -43,15 +43,15 @@ const int32_t kLongPressDuration = 600;
 
 /* static */
 const ProcessorFunction Ui::function_table_[8][2] = {
-  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_WHITE_NOISE },
-  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_PINK_NOISE },
-  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_SNARE_NOISE },
-  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_HH_NOISE },
-
   { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_WHITE_NOISE },
   { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_PINK_NOISE },
   { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_SNARE_NOISE },
   { PROCESSOR_FUNCTION_FM_DRUM, PROCESSOR_FUNCTION_HH_NOISE },
+
+  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_WHITE_NOISE },
+  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_PINK_NOISE },
+  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_SNARE_NOISE },
+  { PROCESSOR_FUNCTION_BASS_DRUM, PROCESSOR_FUNCTION_HH_NOISE },
 };
 
 Storage<0x8020000, 16> storage;
@@ -69,8 +69,8 @@ void Ui::Init() {
 
   if (!storage.ParsimoniousLoad(&settings_, &version_token_)) {
     edit_mode_ = EDIT_MODE_TWIN;
-    function_[0] = FUNCTION_DRUM_GENERATOR;
-    function_[1] = FUNCTION_DRUM_GENERATOR;
+    function_[0] = FUNCTION_1;
+    function_[1] = FUNCTION_1;
     settings_.snap_mode = false;
   } else {
     edit_mode_ = static_cast<EditMode>(settings_.edit_mode);
@@ -132,7 +132,7 @@ inline void Ui::RefreshLeds() {
       break;
   }
   if ((system_clock.milliseconds() & 256) &&
-      function() >= FUNCTION_FIRST_ALTERNATE_FUNCTION) {
+      function() >= FUNCTION_FIRST_PAGE_TWO) {
     leds_.set_function(4);
   } else {
     leds_.set_function(function() & 3);
@@ -281,12 +281,12 @@ void Ui::OnSwitchReleased(const Event& e) {
       {
         Function f = function();
         if (e.data > kLongPressDuration) {
-          f = static_cast<Function>((f + FUNCTION_FIRST_ALTERNATE_FUNCTION) % FUNCTION_LAST);
+          f = static_cast<Function>((f + FUNCTION_FIRST_PAGE_TWO) % FUNCTION_LAST);
         } else {
-          if (f <= FUNCTION_DRUM_GENERATOR) {
+          if (f <= FUNCTION_4) {
             f = static_cast<Function>((f + 1) & 3);
           } else {
-            f = static_cast<Function>(((f + 1) & 3) + FUNCTION_FIRST_ALTERNATE_FUNCTION);
+            f = static_cast<Function>(((f + 1) & 3) + FUNCTION_FIRST_PAGE_TWO);
           }
         }
         SetFunction(edit_mode_ - EDIT_MODE_FIRST, f);
